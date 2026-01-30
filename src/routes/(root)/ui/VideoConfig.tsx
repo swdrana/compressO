@@ -14,6 +14,7 @@ import { CompressionResult } from '@/types/compression'
 import { zoomInTransition } from '@/utils/animation'
 import { formatBytes } from '@/utils/fs'
 import { cn } from '@/utils/tailwind'
+import { appProxy } from '../-state'
 import CancelCompression from './CancelCompression'
 import Compressing from './Compressing'
 import CompressionPreset from './compression-options/CompressionPreset'
@@ -24,29 +25,19 @@ import VideoDimensions from './compression-options/VideoDimensions'
 import VideoExtension from './compression-options/VideoExtension'
 import VideoFPS from './compression-options/VideoFPS'
 import FileName from './FileName'
-import PreviewVideo from './PreviewVideo'
+import PreviewBatchVideos from './PreviewBatchVideos'
+import PreviewSingleVideo from './PreviewSingleVideo'
 import SaveVideo from './SaveVideo'
-import Success from './Success'
 import styles from './styles.module.css'
+import Success from './Success'
 import VideoThumbnail from './VideoThumbnail'
-import { appProxy } from '../-state'
 
 function VideoConfig() {
   const {
-    state: { videos, isCompressing },
+    state: { videos, isCompressing, isProcessCompleted },
   } = useSnapshot(appProxy)
   const video = videos.length > 0 ? videos[0] : null
-  const {
-    config,
-    thumbnailPath,
-    fileName,
-    isProcessCompleted,
-    size: videoSize,
-    videDurationRaw,
-    extension: videoExtension,
-    dimensions,
-    fps,
-  } = video ?? {}
+  const { config, thumbnailPath, fileName, dimensions, fps } = video ?? {}
 
   const { presetName, shouldMuteVideo } = config ?? {}
   const isThumbnailGenerating = thumbnailPath == null
@@ -110,6 +101,7 @@ function VideoConfig() {
         const video = videosSnapShot[index]
         const videoResult: CompressionResult | null = results[video.id!] || null
 
+        appProxy.state.videos[index].isProcessCompleted = true
         appProxy.state.videos[index].compressedVideo = {
           isSuccessful: !(videoResult == null),
           fileName: videoResult?.fileMetadata?.fileName ?? video.fileName,
@@ -143,7 +135,14 @@ function VideoConfig() {
       {!isThumbnailGenerating ? (
         <div className={cn(['h-full p-6', styles.videoConfigContainer])}>
           <AnimatePresence>
-            <section className="px-4 py-6 hlg:py-10 flex flex-col justify-center items-center rounded-xl border-2 border-zinc-200 dark:border-zinc-800">
+            <section
+              className={cn(
+                'px-4 py-6 hlg:py-10 rounded-xl border-2 border-zinc-200 dark:border-zinc-800',
+                videos.length === 1
+                  ? 'flex flex-col justify-center items-center'
+                  : '',
+              )}
+            >
               {fileName && !isCompressing ? <FileName /> : null}
               {isCompressing ? (
                 <Compressing />
@@ -152,76 +151,14 @@ function VideoConfig() {
                   <VideoThumbnail />
                   <Success />
                 </>
+              ) : videos.length > 1 ? (
+                <PreviewBatchVideos />
               ) : (
                 <motion.div
                   className="flex flex-col justify-center items-center"
                   {...zoomInTransition}
                 >
-                  <PreviewVideo />
-                  <section className={cn(['my-4', styles.videoMetadata])}>
-                    <>
-                      <div>
-                        <p className="italic text-gray-600 dark:text-gray-400">
-                          Size
-                        </p>
-                        <span className="block font-black">{videoSize}</span>
-                      </div>
-                      <Divider orientation="vertical" className="h-10" />
-                    </>
-                    <>
-                      <div>
-                        <p className="italic text-gray-600 dark:text-gray-400">
-                          Extension
-                        </p>
-                        <span className="block font-black">
-                          {videoExtension ?? '-'}
-                        </span>
-                      </div>
-                      <Divider orientation="vertical" className="h-10" />
-                    </>
-
-                    <>
-                      <div>
-                        <p className="italic text-gray-600 dark:text-gray-400">
-                          Duration
-                        </p>
-                        <span className="block font-black">
-                          {videDurationRaw ?? '-'}
-                        </span>
-                      </div>
-                    </>
-                    <>
-                      {dimensions ? (
-                        <>
-                          <Divider orientation="vertical" className="h-10" />{' '}
-                          <div>
-                            <p className="italic text-gray-600 dark:text-gray-400">
-                              Dimensions
-                            </p>
-                            <span className="block font-black">
-                              {dimensions.width ?? '-'} x{' '}
-                              {dimensions.height ?? '-'}
-                            </span>
-                          </div>
-                        </>
-                      ) : null}
-                    </>
-                    <>
-                      {fps ? (
-                        <>
-                          <Divider orientation="vertical" className="h-10" />{' '}
-                          <div>
-                            <p className="italic text-gray-600 dark:text-gray-400">
-                              FPS
-                            </p>
-                            <span className="block font-black">
-                              {fps ?? '-'}
-                            </span>
-                          </div>
-                        </>
-                      ) : null}
-                    </>
-                  </section>
+                  <PreviewSingleVideo />
                 </motion.div>
               )}
             </section>

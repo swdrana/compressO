@@ -14,11 +14,11 @@ import VideoPicker from '@/tauri/components/VideoPicker'
 import { extensions } from '@/types/compression'
 import { formatBytes } from '@/utils/fs'
 import { convertDurationToMilliseconds } from '@/utils/string'
+import { Video } from '../../types/app'
 import { appProxy, videoConfigInitialState } from './-state'
 import DragAndDrop from './ui/DragAndDrop'
 import Setting from './ui/Setting'
 import VideoConfig from './ui/VideoConfig'
-import { Video } from '../../types/app'
 
 export const Route = createFileRoute('/(root)/')({
   component: Root,
@@ -39,7 +39,6 @@ function Root() {
         toast.error('Invalid video(s) selected.')
         return
       }
-      // console.log('videoPaths', videoPaths)
       let corruptedFilesCount = 0
       for (const index in videoPaths) {
         const path = videoPaths[index]
@@ -49,7 +48,6 @@ function Root() {
             getVideoInfo(path),
             generateVideoThumbnail(path),
           ])
-          // console.log('>>', [fileMetadata, videoInfo, videoThumbnail])
 
           if (
             !fileMetadata ||
@@ -127,7 +125,9 @@ function Root() {
 
   return videos.length ? (
     isLoadingFiles ? (
-      <Spinner size="lg" />
+      <div className="w-screen h-screen flex justify-center items-center dark:bg-black1 bg-white1">
+        <Spinner size="lg" />
+      </div>
     ) : (
       <VideoConfig />
     )

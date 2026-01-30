@@ -9,7 +9,6 @@ import Tooltip from '@/components/Tooltip'
 import { moveFile, showItemInFileManager } from '@/tauri/commands/fs'
 import { appProxy } from '../-state'
 
-// TODO: Apply for each video
 function SaveVideo() {
   const {
     state: { videos, isProcessCompleted },
@@ -28,7 +27,6 @@ function SaveVideo() {
           defaultPath: `compressO-${fileNameDisplay}`,
         })
         if (pathToSave) {
-          // TODO: Apply for each video
           appProxy.state.videos[0].compressedVideo = {
             ...(snapshot(appProxy).state.videos[0].compressedVideo ?? {}),
             isSaving: true,

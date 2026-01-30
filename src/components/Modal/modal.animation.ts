@@ -6,17 +6,17 @@ export const zoomIn: Variants = {
     opacity: 1,
     transition: {
       type: 'spring',
-      bounce: 0.2,
+      bounce: 0.3,
       duration: 0.5,
     },
   },
   exit: {
-    scale: 0.9,
-    opacity: 0.5,
+    scale: 0.8,
+    opacity: 0,
     transition: {
       type: 'spring',
-      bounce: 0.2,
-      duration: 0.5,
+      bounce: 0.3,
+      duration: 0.3,
     },
   },
 }

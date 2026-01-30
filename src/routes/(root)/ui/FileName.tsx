@@ -1,5 +1,5 @@
 import { useDisclosure } from '@heroui/modal'
-import { UseDisclosureProps } from '@heroui/react'
+import { Code, UseDisclosureProps } from '@heroui/react'
 import React from 'react'
 import { snapshot, useSnapshot } from 'valtio'
 
@@ -15,6 +15,8 @@ function FileName() {
     state: { videos, isProcessCompleted },
     resetProxy,
   } = useSnapshot(appProxy)
+  const video = videos.length > 0 ? videos[0] : null
+  const { fileName, compressedVideo } = video ?? {}
 
   const alertDiscloser = useDisclosure()
 
@@ -48,19 +50,22 @@ function FileName() {
     appProxy.timeTravel('beforeCompressionStarted')
   }
 
-  // const fileNameDisplay =
-  //   (isProcessCompleted ? compressedVideo?.fileNameToDisplay : fileName) ?? ''
+  const fileNameDisplay =
+    (isProcessCompleted ? compressedVideo?.fileNameToDisplay : fileName) ?? ''
 
   return videos.length ? (
     <>
       <div className="mx-auto w-fit flex justify-center items-center mb-2 gap-1">
-        {/* <Code className="ml-auto mr-auto text-center rounded-xl px-4 text-xs xl:text-sm">
+        <Code
+          size="sm"
+          className="ml-auto mr-auto text-center rounded-xl px-4 text-xs xl:text-sm"
+        >
           {fileNameDisplay?.length > 50
             ? `${fileNameDisplay?.slice(0, 20)}...${fileNameDisplay?.slice(
                 -10,
               )}`
             : fileNameDisplay}
-        </Code> */}
+        </Code>
         {isProcessCompleted ? (
           <Button
             isIconOnly

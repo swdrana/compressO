@@ -40,7 +40,7 @@ export type Video = {
   isCompressing?: boolean
   isProcessCompleted?: boolean
   compressedVideo?: {
-    isSuccessful: boolean
+    isSuccessful?: boolean
     pathRaw?: string | null
     path?: string | null
     fileName?: string | null

@@ -43,3 +43,20 @@ export const slideDownTransition: Variants = {
     },
   },
 } as const
+
+export const zoomInStaggerAnimation: { container: Variants; item: Variants } = {
+  container: {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+      },
+    },
+  },
+  item: {
+    hidden: { opacity: 0, scale: 0.9 },
+    show: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.9 },
+  },
+}
