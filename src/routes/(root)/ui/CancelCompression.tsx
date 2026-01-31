@@ -2,7 +2,7 @@ import { event } from '@tauri-apps/api'
 import { emitTo } from '@tauri-apps/api/event'
 import { AnimatePresence, motion } from 'framer-motion'
 import React from 'react'
-import { useSnapshot } from 'valtio'
+import { snapshot, useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
 import { toast } from '@/components/Toast'
@@ -64,10 +64,11 @@ function CancelCompression() {
 
   const cancelOngoingCompression = async () => {
     try {
+      const appSnapShot = snapshot(appProxy)
       setIsCancelling(true)
       await emitTo('main', CustomEvents.CancelInProgressCompression, {
-        videoId: appProxy.state.videos[0].id,
-        batchId: appProxy.state.batchId,
+        videoId: appSnapShot.state.videos[0].id,
+        batchId: appSnapShot.state.batchId,
       })
       appProxy.timeTravel('beforeCompressionStarted')
     } catch {

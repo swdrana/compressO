@@ -58,8 +58,11 @@ function VideoConfig() {
           appProxy.state.videos[0].config.transformVideoConfig.previewUrl
       }
 
+      const batchId = `${+new Date()}`
+      appProxy.state.batchId = batchId
+
       const { results } = await compressVideos({
-        batchId: `${+new Date()}`,
+        batchId,
         videos: appSnapshot.state.videos.map((v) => ({
           videoId: v.id!,
           videoPath: v.pathRaw!,

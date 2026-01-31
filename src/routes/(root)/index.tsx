@@ -2,6 +2,7 @@ import { Spinner } from '@heroui/react'
 import { createFileRoute } from '@tanstack/react-router'
 import { core } from '@tauri-apps/api'
 import { motion } from 'framer-motion'
+import cloneDeep from 'lodash/cloneDeep'
 import React from 'react'
 import { useSnapshot } from 'valtio'
 
@@ -67,10 +68,10 @@ function Root() {
             sizeInBytes: fileMetadata?.size,
             size: formatBytes(fileMetadata?.size ?? 0),
             extension: fileMetadata?.extension?.toLowerCase?.(),
-            config: videoConfigInitialState,
+            config: cloneDeep(videoConfigInitialState),
           }
 
-          if (fileMetadata?.extension) {
+          if (videoPaths.length === 1 && fileMetadata?.extension) {
             videoState.config.convertToExtension =
               fileMetadata?.extension as keyof (typeof extensions)['video']
           }
@@ -113,7 +114,7 @@ function Root() {
       appProxy.state.isLoadingFiles = false
       if (corruptedFilesCount > 0) {
         toast.error(
-          `${videoPaths.length > 1 ? 'Some files seem' : 'File seems'} to be corrupted/invalid and are filtered out.`,
+          `${videoPaths.length > 1 ? 'Some files seem' : 'File seems'} to be corrupted/invalid ${videoPaths.length > 1 ? 'and are filtered out' : ''}.`,
         )
         if (corruptedFilesCount === videoPaths.length) {
           resetProxy()
