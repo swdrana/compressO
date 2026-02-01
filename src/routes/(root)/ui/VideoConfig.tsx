@@ -44,10 +44,12 @@ function VideoConfig() {
     const appSnapshot = snapshot(appProxy)
     if (appSnapshot.state.isCompressing) return
 
+    appProxy.removeSnapshot('batchCompressionStep')
+    appProxy.state.isBatchCompressionCancelled = false
+    appProxy.takeSnapshot('beforeCompressionStarted')
+
     const video = appSnapshot.state.videos[0]
     try {
-      appProxy.state.isBatchCompressionCancelled = false
-      appProxy.takeSnapshot('beforeCompressionStarted')
       appProxy.state.isCompressing = true
 
       if (

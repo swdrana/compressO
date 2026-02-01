@@ -38,6 +38,7 @@ type AppProxy = {
   snapshots: Record<SnapshotMoment, App>
   takeSnapshot: (moment: SnapshotMoment) => void
   timeTravel: (to: SnapshotMoment) => void
+  removeSnapshot: (moment: SnapshotMoment) => void
   resetProxy: () => void
 }
 
@@ -57,6 +58,11 @@ export const appProxy: AppProxy = proxy({
   timeTravel(to: SnapshotMoment) {
     if (to in snapshotMoment) {
       appProxy.state = cloneDeep(appProxy.snapshots[to])
+    }
+  },
+  removeSnapshot(moment: SnapshotMoment) {
+    if (moment in snapshotMoment) {
+      delete appProxy.snapshots[moment]
     }
   },
   resetProxy() {

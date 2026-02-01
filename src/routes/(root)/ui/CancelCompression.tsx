@@ -15,6 +15,22 @@ function CancelCompression() {
 
   const [confirmCancellation, setConfirmCancellation] = React.useState(false)
   const [isCancelling, setIsCancelling] = React.useState(false)
+  const confirmTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+
+  React.useEffect(() => {
+    if (confirmCancellation) {
+      confirmTimeoutRef.current = setTimeout(() => {
+        setConfirmCancellation(false)
+      }, 5000)
+    }
+
+    return () => {
+      if (confirmTimeoutRef.current) {
+        clearTimeout(confirmTimeoutRef.current)
+        confirmTimeoutRef.current = null
+      }
+    }
+  }, [confirmCancellation])
 
   const cancelOngoingCompression = async () => {
     try {
@@ -24,7 +40,10 @@ function CancelCompression() {
         videoId: appSnapShot.state.videos[0].id,
         batchId: appSnapShot.state.batchId,
       })
-      if (appProxy.state.videos.length > 1) {
+      if (
+        appProxy.state.videos.length > 1 &&
+        appProxy.state.currentVideoIndex > 0
+      ) {
         appProxy.timeTravel('batchCompressionStep')
         appProxy.state.isProcessCompleted = true
         appProxy.state.isCompressing = false

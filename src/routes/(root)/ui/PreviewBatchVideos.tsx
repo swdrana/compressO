@@ -22,6 +22,7 @@ function PreviewBatchVideos() {
       currentVideoIndex,
       totalSelectedFilesCount,
       isLoadingFiles,
+      isBatchCompressionCancelled,
     },
   } = useSnapshot(appProxy)
 
@@ -33,6 +34,10 @@ function PreviewBatchVideos() {
       (v) => v.isProcessCompleted && v.compressedVideo?.sizeInBytes,
     )
     const compressedCount = completedVideos.length
+    const cancelledCount = isBatchCompressionCancelled
+      ? totalVideos - compressedCount
+      : 0
+
     const originalSize = completedVideos.reduce(
       (sum, v) => sum + (v.sizeInBytes ?? 0),
       0,
@@ -52,6 +57,13 @@ function PreviewBatchVideos() {
       0,
     )
 
+    const displayTotalVideos = isBatchCompressionCancelled
+      ? compressedCount
+      : totalVideos
+    const displayTotalSize = isBatchCompressionCancelled
+      ? completedVideos.reduce((sum, v) => sum + (v.sizeInBytes ?? 0), 0)
+      : totalSize
+
     return {
       totalVideos,
       totalSize,
@@ -60,10 +72,13 @@ function PreviewBatchVideos() {
       sizeSaved,
       percentageSaved,
       totalProgress,
+      cancelledCount,
+      displayTotalVideos,
+      displayTotalSize,
       isPositiveCompression:
         (compressedSize ?? Number.MAX_SAFE_INTEGER) < (totalSize ?? 0),
     }
-  }, [videos])
+  }, [videos, isBatchCompressionCancelled])
 
   const handleRemoveVideo = useCallback(
     (index: number) => {
@@ -306,8 +321,8 @@ function PreviewBatchVideos() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-6">
                 <div>
-                  <p className="text-[12px] italic text-gray-600 dark:text-gray-400">
-                    Videos Compressed
+                  <p className="italic text-gray-600 dark:text-gray-400">
+                    Compressed
                   </p>
                   <p className="font-black text-lg">
                     {compressionStats?.compressedCount ?? 0} /{' '}
@@ -316,7 +331,7 @@ function PreviewBatchVideos() {
                 </div>
                 <Divider orientation="vertical" className="h-8" />
                 <div>
-                  <p className="text-[12px] italic text-gray-600 dark:text-gray-400">
+                  <p className="italic text-gray-600 dark:text-gray-400">
                     Saved
                   </p>
                   <p className="font-black text-lg text-green-600 dark:text-green-400">
@@ -341,7 +356,7 @@ function PreviewBatchVideos() {
             <div className="flex items-center gap-6">
               <div>
                 <p className="italic text-gray-600 dark:text-gray-400">
-                  Total Videos
+                  Videos
                 </p>
                 <p
                   className={cn(
@@ -349,25 +364,24 @@ function PreviewBatchVideos() {
                     isLoadingFiles ? 'animate-pulse' : '',
                   )}
                 >
-                  {compressionStats.totalVideos}{' '}
-                  {/* Show this when batch compression was cancelled when it was in progress */}
-                  <span className="text-xs italic text-warning-400">
-                    (25 cancelled)
-                  </span>
+                  {compressionStats.displayTotalVideos}
+                  {compressionStats.cancelledCount > 0 ? (
+                    <span className="text-xs italic text-warning-400 ml-2">
+                      ({compressionStats.cancelledCount} cancelled)
+                    </span>
+                  ) : null}
                 </p>
               </div>
               <Divider orientation="vertical" className="h-8" />
               <div>
-                <p className="italic text-gray-600 dark:text-gray-400">
-                  Total Size
-                </p>
+                <p className="italic text-gray-600 dark:text-gray-400">Size</p>
                 <p
                   className={cn(
                     'font-black text-lg',
                     isLoadingFiles ? 'animate-pulse' : '',
                   )}
                 >
-                  {formatBytes(compressionStats.totalSize)}
+                  {formatBytes(compressionStats.displayTotalSize)}
                 </p>
               </div>
               {isProcessCompleted ? (
