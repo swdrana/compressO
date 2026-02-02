@@ -3,7 +3,6 @@ import React from 'react'
 import { useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
-import Icon from '@/components/Icon'
 import Layout from '@/components/Layout'
 import { zoomInTransition } from '@/utils/animation'
 import { cn } from '@/utils/tailwind'
@@ -52,14 +51,12 @@ function VideoConfig() {
                       </motion.div>
                       <Button
                         size="sm"
-                        isIconOnly
-                        className="absolute top-4 left-4"
-                        radius="full"
+                        className="absolute top-4 right-4"
                         onPress={() => {
                           appProxy.state.selectedVideoIndexForCustomization = -1
                         }}
                       >
-                        <Icon name="back" size={25} />
+                        Apply
                       </Button>
                     </div>
                   </>
@@ -75,7 +72,11 @@ function VideoConfig() {
             )}
           </AnimatePresence>
         </section>
-        <OutputSettings />
+        <OutputSettings
+          videoIndex={
+            videos.length === 1 ? 0 : selectedVideoIndexForCustomization
+          }
+        />
       </div>
       {isCompressing ? <CompressionProgress /> : null}
     </Layout>

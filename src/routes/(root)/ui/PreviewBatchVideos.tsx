@@ -232,7 +232,12 @@ function PreviewBatchVideos() {
                               appProxy.state.selectedVideoIndexForCustomization =
                                 index
                             }}
-                            className="absolute bottom-2 left-2 z-10 rounded-full bg-zinc-800/80 text-white hover:bg-zinc-700 transition-colors"
+                            className={cn(
+                              'absolute bottom-2 left-2 z-10 rounded-full text-white hover:bg-zinc-700 transition-colors',
+                              video.isConfigDirty
+                                ? 'bg-primary'
+                                : 'bg-zinc-800/80',
+                            )}
                           >
                             <Icon name="pencil" size={20} />
                           </Button>

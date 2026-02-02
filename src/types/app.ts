@@ -55,6 +55,7 @@ export type Video = {
   } | null
   compressionProgress?: number
   config: VideoConfig
+  isConfigDirty?: boolean
   dimensions?: { width: number; height: number }
   fps?: number
 }
@@ -74,4 +75,5 @@ export type App = {
   isSaved: boolean
   savedPath?: string
   selectedVideoIndexForCustomization: number
+  commonConfigForBatchCompression: VideoConfig
 }

@@ -25,6 +25,7 @@ const appInitialState: App = {
   isSaving: false,
   isSaved: false,
   selectedVideoIndexForCustomization: -1,
+  commonConfigForBatchCompression: videoConfigInitialState,
 }
 
 const snapshotMoment = {
@@ -40,6 +41,7 @@ type AppProxy = {
   takeSnapshot: (moment: SnapshotMoment) => void
   timeTravel: (to: SnapshotMoment) => void
   removeSnapshot: (moment: SnapshotMoment) => void
+  clearSnapshots: () => void
   resetProxy: () => void
 }
 
@@ -66,8 +68,26 @@ export const appProxy: AppProxy = proxy({
       delete appProxy.snapshots[moment]
     }
   },
+  clearSnapshots() {
+    cloneDeep(snapshotsInitialState)
+  },
   resetProxy() {
     appProxy.state = cloneDeep(appInitialState)
     appProxy.snapshots = cloneDeep(snapshotsInitialState)
   },
 })
+
+/**
+ * Normalizes the individual non-dirty video config to match with batch config.
+ */
+export function normalizeBatchVideosConfig() {
+  if (appProxy.state.videos.length > 1) {
+    for (const index in appProxy.state.videos) {
+      if (!appProxy.state.videos[index]?.isConfigDirty) {
+        appProxy.state.videos[index].config = cloneDeep(
+          appProxy.state.commonConfigForBatchCompression,
+        )
+      }
+    }
+  }
+}

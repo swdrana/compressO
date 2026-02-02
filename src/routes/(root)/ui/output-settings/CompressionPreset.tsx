@@ -1,5 +1,6 @@
 import { SelectItem } from '@heroui/select'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Icon from '@/components/Icon'
@@ -8,42 +9,79 @@ import Switch from '@/components/Switch'
 import Tooltip from '@/components/Tooltip'
 import { compressionPresets } from '@/types/compression'
 import { slideDownTransition } from '@/utils/animation'
-import { appProxy } from '../../-state'
+import { appProxy, normalizeBatchVideosConfig } from '../../-state'
 
 const presets = Object.keys(compressionPresets)
 
-function CompressionPreset() {
+type CompressionPresetProps = {
+  videoIndex: number
+}
+
+function CompressionPreset({ videoIndex }: CompressionPresetProps) {
   const {
-    state: { isCompressing, isProcessCompleted, videos },
+    state: {
+      isCompressing,
+      isProcessCompleted,
+      videos,
+      commonConfigForBatchCompression,
+      isLoadingFiles,
+    },
   } = useSnapshot(appProxy)
-  const video = videos.length > 0 ? videos[0] : null
+  const video = videos.length > 0 && videoIndex >= 0 ? videos[videoIndex] : null
   const { config } = video ?? {}
-  const { presetName, shouldDisableCompression } = config ?? {}
+  const { presetName, shouldDisableCompression } =
+    config ?? commonConfigForBatchCompression ?? {}
+
+  const handleSwitchToggle = useCallback(() => {
+    if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
+      appProxy.state.videos[videoIndex].config.shouldDisableCompression =
+        !shouldDisableCompression
+      appProxy.state.videos[videoIndex].isConfigDirty = true
+    } else {
+      if (appProxy.state.videos.length > 1) {
+        appProxy.state.commonConfigForBatchCompression.shouldDisableCompression =
+          !shouldDisableCompression
+        normalizeBatchVideosConfig()
+      }
+    }
+  }, [videoIndex, shouldDisableCompression])
+
+  const handleValueChange = useCallback(
+    (value: keyof typeof compressionPresets) => {
+      if (value?.length > 0) {
+        if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
+          appProxy.state.videos[videoIndex].config.presetName = value
+          appProxy.state.videos[videoIndex].isConfigDirty = true
+        } else {
+          if (appProxy.state.videos.length > 1) {
+            appProxy.state.commonConfigForBatchCompression.presetName = value
+            normalizeBatchVideosConfig()
+          }
+        }
+      }
+    },
+    [videoIndex],
+  )
+
+  const shouldDisableInput =
+    videos.length === 0 || isCompressing || isProcessCompleted || isLoadingFiles
 
   return (
     <>
-      <>
-        <div className="flex items-center mb-4 my-2">
-          <Switch
-            disabled={videos.length === 0}
-            isSelected={!shouldDisableCompression}
-            onValueChange={() => {
-              if (appProxy.state.videos.length) {
-                appProxy.state.videos[0].config.shouldDisableCompression =
-                  !shouldDisableCompression
-              }
-            }}
-            className="flex justify-center items-center"
-            isDisabled={isCompressing || isProcessCompleted}
-          >
-            <div className="flex justify-center items-center">
-              <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
-                Compress
-              </span>
-            </div>
-          </Switch>
-        </div>
-      </>
+      <div className="flex items-center mb-4 my-2">
+        <Switch
+          isSelected={!shouldDisableCompression}
+          onValueChange={handleSwitchToggle}
+          className="flex justify-center items-center"
+          isDisabled={shouldDisableInput}
+        >
+          <div className="flex justify-center items-center">
+            <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
+              Compress
+            </span>
+          </div>
+        </Switch>
+      </div>
       <AnimatePresence mode="wait">
         {!shouldDisableCompression ? (
           <motion.div {...slideDownTransition} className="mt-2">
@@ -55,21 +93,12 @@ function CompressionPreset() {
                 className="block flex-shrink-0 rounded-2xl"
                 selectedKeys={[presetName!]}
                 onChange={(evt) => {
-                  if (appProxy.state.videos.length) {
-                    const value = evt?.target
-                      ?.value as keyof typeof compressionPresets
-                    if (value?.length > 0) {
-                      appProxy.state.videos[0].config.presetName = value
-                    }
-                  }
+                  const value = evt?.target
+                    ?.value as unknown as keyof typeof compressionPresets
+                  handleValueChange(value)
                 }}
                 selectionMode="single"
-                isDisabled={
-                  videos.length === 0 ||
-                  shouldDisableCompression ||
-                  isCompressing ||
-                  isProcessCompleted
-                }
+                isDisabled={shouldDisableCompression || shouldDisableInput}
                 classNames={{
                   label: '!text-gray-600 dark:!text-gray-400 text-xs',
                 }}

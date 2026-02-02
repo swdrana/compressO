@@ -65,7 +65,7 @@ function PreviewSingleVideo({ videoIndex }: PreviewSingleVideoProps) {
             )}`
           : singleFileNameDisplay}
       </Code>
-      {video ? <VideoThumbnail videoIndex={0} /> : null}
+      {video ? <VideoThumbnail videoIndex={videoIndex} /> : null}
       {!isProcessCompleted ? (
         <section className={cn(['my-4 mb-2', styles.videoMetadata])}>
           <>

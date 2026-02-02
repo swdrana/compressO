@@ -44,6 +44,7 @@ function Root() {
         toast.error('Invalid video(s) selected.')
         return
       }
+
       let corruptedFilesCount = 0
       for (const index in videoPaths) {
         const path = videoPaths[index]
@@ -75,7 +76,7 @@ function Root() {
             config: cloneDeep(videoConfigInitialState),
           }
 
-          if (videoPaths.length === 1 && fileMetadata?.extension) {
+          if (fileMetadata?.extension) {
             videoState.config.convertToExtension =
               fileMetadata?.extension as keyof (typeof extensions)['video']
           }
@@ -84,7 +85,7 @@ function Root() {
             const dimensions = videoInfo.dimensions
             if (
               !Number.isNaN(videoInfo.dimensions?.[0]) &&
-              !Number.isNaN(videoInfo.dimensions[1])
+              !Number.isNaN(videoInfo.dimensions?.[1])
             ) {
               videoState.dimensions = {
                 width: dimensions[0],

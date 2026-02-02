@@ -1,19 +1,30 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import React from 'react'
+import React, { useCallback } from 'react'
 import { snapshot, useSnapshot } from 'valtio'
 
 import Slider from '@/components/Slider/Slider'
 import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
-import { appProxy } from '../../-state'
+import { appProxy, normalizeBatchVideosConfig } from '../../-state'
 
-function CompressionQuality() {
+type CompressionQualityProps = {
+  videoIndex: number
+}
+
+function CompressionQuality({ videoIndex }: CompressionQualityProps) {
   const {
-    state: { isCompressing, isProcessCompleted, videos },
+    state: {
+      isCompressing,
+      isProcessCompleted,
+      videos,
+      commonConfigForBatchCompression,
+      isLoadingFiles,
+    },
   } = useSnapshot(appProxy)
-  const video = videos.length > 0 ? videos[0] : null
+  const video = videos.length > 0 && videoIndex >= 0 ? videos[videoIndex] : null
   const { config } = video ?? {}
-  const { quality: compressionQuality, shouldEnableQuality } = config ?? {}
+  const { quality: compressionQuality, shouldEnableQuality } =
+    config ?? commonConfigForBatchCompression ?? {}
 
   const [quality, setQuality] = React.useState<number>(
     compressionQuality ?? 100,
@@ -29,21 +40,32 @@ function CompressionQuality() {
     const appSnapshot = snapshot(appProxy)
     if (
       appSnapshot.state.videos.length &&
-      quality !== appSnapshot.state.videos[0]?.config?.quality
+      quality !==
+        (videoIndex >= 0
+          ? appSnapshot.state.videos[videoIndex]?.config?.quality
+          : appSnapshot.state.videos.length > 1
+            ? appSnapshot.state.commonConfigForBatchCompression?.quality
+            : undefined)
     ) {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current)
       }
       debounceRef.current = setTimeout(() => {
-        if (appProxy.state.videos[0].config) {
-          appProxy.state.videos[0].config.quality = quality
+        if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
+          appProxy.state.videos[videoIndex].config.quality = quality
+          appProxy.state.videos[videoIndex].isConfigDirty = true
+        } else {
+          if (appProxy.state.videos.length > 1) {
+            appProxy.state.commonConfigForBatchCompression.quality = quality
+            normalizeBatchVideosConfig()
+          }
         }
       }, 500)
     }
     return () => {
       clearTimeout(debounceRef.current)
     }
-  }, [quality])
+  }, [quality, videoIndex])
 
   React.useEffect(() => {
     if (compressionQuality !== qualityRef.current) {
@@ -61,17 +83,29 @@ function CompressionQuality() {
     }
   }, [])
 
+  const handleSwitchToggle = useCallback(() => {
+    if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
+      appProxy.state.videos[videoIndex].config.shouldEnableQuality =
+        !shouldEnableQuality
+      appProxy.state.videos[videoIndex].isConfigDirty = true
+    } else {
+      if (appProxy.state.videos.length > 1) {
+        appProxy.state.commonConfigForBatchCompression.shouldEnableQuality =
+          !shouldEnableQuality
+        normalizeBatchVideosConfig()
+      }
+    }
+  }, [videoIndex, shouldEnableQuality])
+
+  const shouldDisableInput =
+    videos.length === 0 || isCompressing || isProcessCompleted || isLoadingFiles
+
   return (
     <>
       <Switch
         isSelected={shouldEnableQuality}
-        onValueChange={() => {
-          if (appProxy.state.videos.length) {
-            appProxy.state.videos[0].config.shouldEnableQuality =
-              !shouldEnableQuality
-          }
-        }}
-        isDisabled={videos.length === 0 || isCompressing || isProcessCompleted}
+        onValueChange={handleSwitchToggle}
+        isDisabled={shouldDisableInput}
       >
         <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           Quality
@@ -115,9 +149,7 @@ function CompressionQuality() {
               )}
               value={quality}
               onChange={handleQualityChange}
-              isDisabled={
-                isCompressing || isProcessCompleted || !shouldEnableQuality
-              }
+              isDisabled={!shouldEnableQuality || shouldDisableInput}
             />
           </motion.div>
         ) : null}

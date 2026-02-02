@@ -1,6 +1,7 @@
 import { Divider } from '@heroui/react'
 import { core } from '@tauri-apps/api'
 import { motion } from 'framer-motion'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { snapshot, useSnapshot } from 'valtio'
 
@@ -21,34 +22,47 @@ import CancelCompression from '../CancelCompression'
 import CompressionActions from '../CompressionActions'
 import SaveVideo from '../SaveVideo'
 
-function OutputSettings() {
+type OutputSettingsProps = {
+  videoIndex: number // if videoIndex < 0, we'll only show settings that applies to all videos
+}
+
+function OutputSettings({ videoIndex }: OutputSettingsProps) {
   const {
-    state: { videos, isCompressing, isProcessCompleted, isLoadingFiles },
+    state: {
+      videos,
+      isCompressing,
+      isProcessCompleted,
+      isLoadingFiles,
+      selectedVideoIndexForCustomization,
+    },
   } = useSnapshot(appProxy)
-  const video = videos.length > 0 ? videos[0] : null
-  const { dimensions, fps } = video ?? {}
+  const video = videos.length && videoIndex >= 0 ? videos[videoIndex] : null
+  const { dimensions } = video ?? {}
 
-  const isSingleVideoMode = videos.length === 1
-
-  const handleCompression = async () => {
+  const handleCompression = useCallback(async () => {
     const appSnapshot = snapshot(appProxy)
     if (appSnapshot.state.isCompressing) return
 
-    appProxy.removeSnapshot('batchCompressionStep')
+    appProxy.clearSnapshots()
     appProxy.state.isBatchCompressionCancelled = false
     appProxy.state.selectedVideoIndexForCustomization = -1
     appProxy.takeSnapshot('beforeCompressionStarted')
 
-    const video = appSnapshot.state.videos[0]
+    const video = appSnapshot.state.videos[videoIndex]
+
     try {
       appProxy.state.isCompressing = true
 
-      if (
-        appProxy.state.videos[0].config.shouldTransformVideo &&
-        appProxy.state.videos[0].config.transformVideoConfig?.previewUrl
-      ) {
-        appProxy.state.videos[0].thumbnailPath =
-          appProxy.state.videos[0].config.transformVideoConfig.previewUrl
+      for (const index in appProxy.state.videos) {
+        if (
+          appProxy.state.videos[index]?.config?.shouldTransformVideo &&
+          appProxy.state.videos[index].config?.transformVideoConfig?.previewUrl
+        ) {
+          appProxy.state.videos[index].thumbnailPath =
+            appProxy.state.videos[
+              index
+            ]?.config?.transformVideoConfig?.previewUrl
+        }
       }
 
       const batchId = `${+new Date()}`
@@ -116,46 +130,47 @@ function OutputSettings() {
         appProxy.timeTravel('beforeCompressionStarted')
       }
     }
-  }
+  }, [videoIndex])
 
   return (
     <section className="p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-800 h-full">
-      <div className="flex items-center justify-between w-full">
+      <div className="flex items-center justify-between w-full mb-4">
         <p className="text-xl font-bold">
-          {videos.length > 1 ? 'Batch' : 'Output'} Settings
+          {videos.length === 1 || selectedVideoIndexForCustomization > -1
+            ? 'Output'
+            : 'Batch'}{' '}
+          Settings
         </p>
         {!isCompressing ? <CompressionActions /> : null}
       </div>
       <>
-        <CompressionPreset />
+        <CompressionPreset videoIndex={videoIndex} />
         <Divider className="my-3" />
       </>
       <>
-        <MuteAudio />
+        <MuteAudio videoIndex={videoIndex} />
         <Divider className="my-3" />
       </>
 
       <>
-        <CompressionQuality />
+        <CompressionQuality videoIndex={videoIndex} />
         <Divider className="my-3" />
       </>
-      {isSingleVideoMode && dimensions ? (
+      {videoIndex >= 0 && dimensions ? (
         <>
-          <VideoDimensions />
+          <VideoDimensions videoIndex={videoIndex} />
           <Divider className="my-3" />
-          <TransformVideo />
-          <Divider className="my-3" />
-        </>
-      ) : null}
-      {fps ? (
-        <>
-          <VideoFPS />
+          <TransformVideo videoIndex={videoIndex} />
           <Divider className="my-3" />
         </>
       ) : null}
       <>
+        <VideoFPS videoIndex={videoIndex} />
+        <Divider className="my-3" />
+      </>
+      <>
         <div className="mt-8">
-          <VideoExtension />
+          <VideoExtension videoIndex={videoIndex} />
         </div>
       </>
       <div className="mt-4">

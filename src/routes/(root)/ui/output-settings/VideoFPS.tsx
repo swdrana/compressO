@@ -1,33 +1,72 @@
 import { SelectItem } from '@heroui/select'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Select from '@/components/Select'
 import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
-import { appProxy } from '../../-state'
+import { appProxy, normalizeBatchVideosConfig } from '../../-state'
 
 const FPS = [24, 25, 30, 50, 60] as const
 
-function VideoFPS() {
+type VideoFPSProps = {
+  videoIndex: number
+}
+
+function VideoFPS({ videoIndex }: VideoFPSProps) {
   const {
-    state: { videos, isCompressing, isProcessCompleted },
+    state: {
+      videos,
+      isCompressing,
+      isProcessCompleted,
+      commonConfigForBatchCompression,
+      isLoadingFiles,
+    },
   } = useSnapshot(appProxy)
-  const video = videos.length > 0 ? videos[0] : null
+  const video = videos.length > 0 && videoIndex >= 0 ? videos[videoIndex] : null
   const { config, fps } = video ?? {}
-  const { shouldEnableCustomFPS, customFPS } = config ?? {}
+  const { shouldEnableCustomFPS, customFPS } =
+    config ?? commonConfigForBatchCompression ?? {}
+
+  const handleSwitchToggle = useCallback(() => {
+    if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
+      appProxy.state.videos[videoIndex].config.shouldEnableCustomFPS =
+        !shouldEnableCustomFPS
+      appProxy.state.videos[videoIndex].isConfigDirty = true
+    } else {
+      if (appProxy.state.videos.length > 1) {
+        appProxy.state.commonConfigForBatchCompression.shouldEnableCustomFPS =
+          !shouldEnableCustomFPS
+        normalizeBatchVideosConfig()
+      }
+    }
+  }, [videoIndex, shouldEnableCustomFPS])
+
+  const handleValueChange = useCallback(
+    (value: number) => {
+      if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
+        appProxy.state.videos[videoIndex].config.customFPS = +value
+        appProxy.state.videos[videoIndex].isConfigDirty = true
+      } else {
+        if (appProxy.state.videos.length > 1) {
+          appProxy.state.commonConfigForBatchCompression.customFPS = +value
+          normalizeBatchVideosConfig()
+        }
+      }
+    },
+    [videoIndex],
+  )
+
+  const shouldDisableInput =
+    videos.length === 0 || isCompressing || isProcessCompleted || isLoadingFiles
 
   return (
     <>
       <Switch
         isSelected={shouldEnableCustomFPS}
-        onValueChange={() => {
-          if (appProxy.state.videos.length) {
-            appProxy.state.videos[0].config.shouldEnableCustomFPS =
-              !shouldEnableCustomFPS
-          }
-        }}
-        isDisabled={videos.length === 0 || isCompressing || isProcessCompleted}
+        onValueChange={handleSwitchToggle}
+        isDisabled={shouldDisableInput}
       >
         <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
           FPS
@@ -44,17 +83,13 @@ function VideoFPS() {
               size="sm"
               value={String(customFPS ?? fps)}
               onChange={(evt) => {
-                if (appProxy.state.videos.length) {
-                  const value = evt?.target?.value
-                  if (value && !Number.isNaN(+value)) {
-                    appProxy.state.videos[0].config.customFPS = +value
-                  }
+                const value = evt?.target?.value
+                if (value && !Number.isNaN(+value)) {
+                  handleValueChange(+value)
                 }
               }}
               selectionMode="single"
-              isDisabled={
-                videos.length === 0 || isCompressing || isProcessCompleted
-              }
+              isDisabled={!shouldEnableCustomFPS || shouldDisableInput}
               classNames={{
                 label: '!text-gray-600 dark:!text-gray-400 text-xs',
               }}

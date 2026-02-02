@@ -1,25 +1,51 @@
+import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Switch from '@/components/Switch'
-import { appProxy } from '../../-state'
+import { appProxy, normalizeBatchVideosConfig } from '../../-state'
 
-function MuteAudio() {
+type MuteAudioProps = {
+  videoIndex: number
+}
+
+function MuteAudio({ videoIndex }: MuteAudioProps) {
   const {
-    state: { videos, isCompressing, isProcessCompleted },
+    state: {
+      videos,
+      isCompressing,
+      isProcessCompleted,
+      commonConfigForBatchCompression,
+      isLoadingFiles,
+    },
   } = useSnapshot(appProxy)
-  const video = videos.length > 0 ? videos[0] : null
+  const video = videos.length > 0 && videoIndex >= 0 ? videos[videoIndex] : null
   const { config } = video ?? {}
-  const { shouldMuteVideo } = config ?? {}
+  const { shouldMuteVideo } = config ?? commonConfigForBatchCompression ?? {}
+
+  const handleSwitchToggle = useCallback(() => {
+    if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
+      appProxy.state.videos[videoIndex].config.shouldMuteVideo =
+        !shouldMuteVideo
+      appProxy.state.videos[videoIndex].isConfigDirty = true
+    } else {
+      if (appProxy.state.videos.length > 1) {
+        appProxy.state.commonConfigForBatchCompression.shouldMuteVideo =
+          !shouldMuteVideo
+        normalizeBatchVideosConfig()
+      }
+    }
+  }, [videoIndex, shouldMuteVideo])
+
+  const shouldDisableInput =
+    videos.length === 0 || isCompressing || isProcessCompleted || isLoadingFiles
 
   return (
     <div className="flex items-center my-2">
       <Switch
         isSelected={shouldMuteVideo}
-        onValueChange={() => {
-          appProxy.state.videos[0].config.shouldMuteVideo = !shouldMuteVideo
-        }}
+        onValueChange={handleSwitchToggle}
         className="flex justify-center items-center"
-        isDisabled={videos.length === 0 || isCompressing || isProcessCompleted}
+        isDisabled={shouldDisableInput}
       >
         <div className="flex justify-center items-center">
           <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
