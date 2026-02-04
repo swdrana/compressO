@@ -15,7 +15,7 @@ interface SelectProps extends NextUISelectProps {}
 function Select(props: SelectProps) {
   return (
     <NextUISelect
-      radius="sm"
+      radius="md"
       size="sm"
       labelPlacement="outside"
       {...props}

@@ -15,6 +15,7 @@ import { CompressionResult, VideoTransformsHistory } from '@/types/compression'
 import { formatBytes } from '@/utils/fs'
 import CompressionPreset from './CompressionPreset'
 import CompressionQuality from './CompressionQuality'
+import CustomThumbnail from './CustomThumbnail'
 import Metadata from './Metadata'
 import MuteAudio from './MuteAudio'
 import TransformVideo from './TransformVideo'
@@ -117,6 +118,11 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
           metadataConfig: !v.config?.shouldPreserveMetadata
             ? ((v.config?.metadataConfig as VideoMetadataConfig) ?? null)
             : null,
+          customThumbnailPath:
+            v.config?.shouldEnableCustomThumbnail &&
+            v.config?.customThumbnailPath?.length
+              ? v.config.customThumbnailPath
+              : null,
         })),
       )
       if (Object.keys(results).length === 0) {
@@ -203,6 +209,7 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
                 <VideoFPS videoIndex={videoIndex} />
                 <Divider className="my-3" />
               </>
+              <CustomThumbnail videoIndex={videoIndex} />
               <>
                 <div className="mt-8">
                   <VideoExtension videoIndex={videoIndex} />

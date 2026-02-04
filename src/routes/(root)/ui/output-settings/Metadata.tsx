@@ -1,23 +1,17 @@
 import { DateValue } from '@heroui/react'
-import { core } from '@tauri-apps/api'
-import { open } from '@tauri-apps/plugin-dialog'
 import { AnimatePresence, motion } from 'framer-motion'
 import cloneDeep from 'lodash/cloneDeep'
 import React, { useCallback, useRef } from 'react'
-import { toast } from 'sonner'
 import { useSnapshot } from 'valtio'
 
-import Button from '@/components/Button'
 import Card from '@/components/Card'
 import DatePicker from '@/components/DatePicker'
 import Divider from '@/components/Divider'
-import Image from '@/components/Image'
 import ScrollShadow from '@/components/ScrollShadow'
 import Switch from '@/components/Switch'
 import TextInput from '@/components/TextInput'
 import type { VideoMetadataConfig } from '@/types/app'
 import { slideDownTransition } from '@/utils/animation'
-import { cn } from '@/utils/tailwind'
 import {
   appProxy,
   normalizeBatchVideosConfig,
@@ -27,8 +21,6 @@ import {
 type MetadataProps = {
   videoIndex: number
 }
-
-const THUMBNAIL_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp']
 
 function Metadata({ videoIndex }: MetadataProps) {
   const {
@@ -42,7 +34,7 @@ function Metadata({ videoIndex }: MetadataProps) {
   } = useSnapshot(appProxy)
   const video = videos.length > 0 && videoIndex >= 0 ? videos[videoIndex] : null
   const { config } = video ?? {}
-  const { shouldPreserveMetadata, metadataConfig, convertToExtension } =
+  const { shouldPreserveMetadata, metadataConfig } =
     config ?? commonConfigForBatchCompression ?? {}
 
   const debounceRef = useRef<NodeJS.Timeout>()
@@ -100,32 +92,6 @@ function Metadata({ videoIndex }: MetadataProps) {
     [videoIndex],
   )
 
-  const handleThumbnailSelect = useCallback(async () => {
-    try {
-      const filePath = await open({
-        directory: false,
-        multiple: false,
-        title: 'Select thumbnail image.',
-        filters: [
-          {
-            name: 'image',
-            extensions: THUMBNAIL_EXTENSIONS,
-          },
-        ],
-      })
-      if (typeof filePath === 'string') {
-        updateMetadataField('thumbnailPath', filePath)
-        toast.success('Thumbnail selected successfully')
-      }
-    } catch (error: any) {
-      toast.error(error?.message ?? 'Could not select thumbnail image.')
-    }
-  }, [updateMetadataField])
-
-  const handleClearThumbnail = useCallback(() => {
-    updateMetadataField('thumbnailPath', null)
-  }, [updateMetadataField])
-
   const handlePreserveMetadataToggle = useCallback(() => {
     if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
       appProxy.state.videos[videoIndex].config.shouldPreserveMetadata =
@@ -161,10 +127,6 @@ function Metadata({ videoIndex }: MetadataProps) {
   const shouldDisableInput =
     videos.length === 0 || isCompressing || isProcessCompleted || isLoadingFiles
 
-  const thumbnailFileName = metadataConfig?.thumbnailPath
-    ? metadataConfig.thumbnailPath.split(/[/\\]/).pop()
-    : null
-
   return (
     <ScrollShadow className="max-h-[75vh]" hideScrollBar>
       <Switch
@@ -182,6 +144,14 @@ function Metadata({ videoIndex }: MetadataProps) {
         {!shouldPreserveMetadata ? (
           <Card className="px-2 my-2 pb-4">
             <motion.div {...slideDownTransition} className="space-y-4 mt-2">
+              <div>
+                <p className="text-xs  italic">
+                  - Leave a field empty to keep original
+                </p>{' '}
+                <p className="text-xs  italic">
+                  - Add a whitespace to remove original
+                </p>
+              </div>
               <div>
                 <TextInput
                   type="text"
@@ -300,76 +270,6 @@ function Metadata({ videoIndex }: MetadataProps) {
                     className="mt-2"
                   />
                 ) : null}
-                <Divider className="mt-3 mb-6" />
-              </div>
-              <div>
-                <TextInput
-                  type="text"
-                  label="Custom Thumbnail"
-                  placeholder="No thumbnail selected"
-                  value={thumbnailFileName ?? 'No thumbnail selected'}
-                  isDisabled={
-                    shouldDisableInput || convertToExtension === 'webm'
-                  }
-                  isReadOnly
-                  classNames={{
-                    input: 'text-xs',
-                    mainWrapper: 'my-3',
-                  }}
-                />
-                {metadataConfig?.thumbnailPath ? (
-                  <div
-                    className={cn(
-                      'flex justify-center items-center w-full',
-                      shouldDisableInput || convertToExtension === 'webm'
-                        ? 'opacity-50'
-                        : '',
-                    )}
-                  >
-                    <Image
-                      alt="custom thumbnail"
-                      src={core.convertFileSrc(metadataConfig.thumbnailPath)}
-                      className={
-                        'max-w-[200px] max-h-[200px] mx-auto object-contain mb-4'
-                      }
-                    />
-                  </div>
-                ) : null}
-                <div>
-                  {!thumbnailFileName ? (
-                    <Button
-                      type="button"
-                      onPress={handleThumbnailSelect}
-                      fullWidth
-                      size="sm"
-                      isDisabled={
-                        shouldDisableInput || convertToExtension === 'webm'
-                      }
-                    >
-                      Choose
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      onPress={handleClearThumbnail}
-                      fullWidth
-                      size="sm"
-                      isDisabled={
-                        shouldDisableInput || convertToExtension === 'webm'
-                      }
-                      color="danger"
-                    >
-                      Clear
-                    </Button>
-                  )}
-                  {convertToExtension === 'webm' ? (
-                    <p className="text-xs italic text-danger-300 mt-2">
-                      webm does not support custom thumbnail
-                    </p>
-                  ) : (
-                    ''
-                  )}
-                </div>
               </div>
             </motion.div>
           </Card>

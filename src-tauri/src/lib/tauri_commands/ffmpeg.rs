@@ -21,6 +21,7 @@ pub async fn compress_video(
     fps: Option<&str>,
     transforms_history: Option<Vec<Value>>,
     metadata_config: Option<VideoMetadataConfig>,
+    custom_thumbnail_path: Option<&str>,
 ) -> Result<CompressionResult, String> {
     let mut ffmpeg = ffmpeg::FFMPEG::new(&app)?;
     if let Ok(files) =
@@ -44,6 +45,7 @@ pub async fn compress_video(
             fps,
             transforms_history.as_ref(),
             metadata_config.as_ref(),
+            custom_thumbnail_path,
         )
         .await
     {

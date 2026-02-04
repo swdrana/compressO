@@ -147,6 +147,8 @@ pub struct VideoCompressionConfig {
     pub fps: Option<String>,
     pub transforms_history: Option<Vec<Value>>,
     pub metadata_config: Option<VideoMetadataConfig>,
+    pub custom_thumbnail_path: Option<String>,
+    pub should_enable_custom_thumbnail: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -159,5 +161,4 @@ pub struct VideoMetadataConfig {
     pub comment: Option<String>,
     pub genre: Option<String>,
     pub creation_time: Option<String>,
-    pub thumbnail_path: Option<String>,
 }

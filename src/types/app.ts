@@ -17,7 +17,6 @@ export type VideoMetadataConfig = {
   creationTime?: string | null
   creationTimeRaw?: DateValue | null
   shouldEnableCreationTime?: boolean
-  thumbnailPath?: string | null
 }
 
 export type VideoConfig = {
@@ -39,6 +38,8 @@ export type VideoConfig = {
   }
   shouldPreserveMetadata?: boolean
   metadataConfig?: VideoMetadataConfig | null
+  customThumbnailPath?: string | null
+  shouldEnableCustomThumbnail?: boolean
 }
 
 export type Video = {

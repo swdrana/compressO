@@ -13,7 +13,6 @@ export const videoMetadataConfigInitialState: VideoMetadataConfig = {
   genre: '',
   creationTime: '',
   creationTimeRaw: now(getLocalTimeZone()),
-  thumbnailPath: '',
 }
 
 export const videoConfigInitialState: VideoConfig = {
@@ -25,6 +24,8 @@ export const videoConfigInitialState: VideoConfig = {
   shouldEnableQuality: false,
   shouldPreserveMetadata: true,
   metadataConfig: null,
+  customThumbnailPath: null,
+  shouldEnableCustomThumbnail: false,
 }
 
 const appInitialState: App = {

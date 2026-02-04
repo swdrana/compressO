@@ -68,6 +68,7 @@ impl FFMPEG {
         fps: Option<&str>,
         transforms_history: Option<&Vec<Value>>,
         metadata_config: Option<&VideoMetadataConfig>,
+        custom_thumbnail_path: Option<&str>,
     ) -> Result<CompressionResult, String> {
         if !EXTENSIONS.contains(&convert_to_extension) {
             return Err(String::from("Invalid convert to extension."));
@@ -111,11 +112,9 @@ impl FFMPEG {
                     let mut args = vec!["-i", &video_path];
 
                     if convert_to_extension != "webm" {
-                        if let Some(metadata) = metadata_config {
-                            if let Some(ref thumbnail_path) = metadata.thumbnail_path {
-                                if thumbnail_path.len() > 0 {
-                                    args.extend_from_slice(&["-i", thumbnail_path]);
-                                }
+                        if let Some(thumb_path) = custom_thumbnail_path {
+                            if thumb_path.len() > 0 {
+                                args.extend_from_slice(&["-i", thumb_path]);
                             }
                         }
                     }
@@ -138,9 +137,9 @@ impl FFMPEG {
                     let mut args = vec!["-i", &video_path];
 
                     if convert_to_extension != "webm" {
-                        if let Some(metadata) = metadata_config {
-                            if let Some(ref thumbnail_path) = metadata.thumbnail_path {
-                                args.extend_from_slice(&["-i", thumbnail_path]);
+                        if let Some(thumb_path) = custom_thumbnail_path {
+                            if thumb_path.len() > 0 {
+                                args.extend_from_slice(&["-i", thumb_path]);
                             }
                         }
                     }
@@ -172,9 +171,9 @@ impl FFMPEG {
                 let mut args = vec!["-i", &video_path];
 
                 if convert_to_extension != "webm" {
-                    if let Some(metadata) = metadata_config {
-                        if let Some(ref thumbnail_path) = metadata.thumbnail_path {
-                            args.extend_from_slice(&["-i", thumbnail_path]);
+                    if let Some(thumb_path) = custom_thumbnail_path {
+                        if thumb_path.len() > 0 {
+                            args.extend_from_slice(&["-i", thumb_path]);
                         }
                     }
                 }
@@ -282,22 +281,22 @@ impl FFMPEG {
                     metadata_args.push(format!("creation_time={}", creation_time));
                 }
             }
+        }
 
-            if metadata.thumbnail_path.is_some() && convert_to_extension != "webm" {
-                if let Some(ref thumbnail_path) = metadata.thumbnail_path {
-                    if thumbnail_path.len() > 0 {
-                        metadata_args.push("-c:v:1".to_string());
-                        metadata_args.push("copy".to_string());
+        if custom_thumbnail_path.is_some() && convert_to_extension != "webm" {
+            if let Some(thumb_path) = custom_thumbnail_path {
+                if thumb_path.len() > 0 {
+                    metadata_args.push("-c:v:1".to_string());
+                    metadata_args.push("copy".to_string());
 
-                        metadata_args.push("-map".to_string());
-                        metadata_args.push("0".to_string());
+                    metadata_args.push("-map".to_string());
+                    metadata_args.push("0".to_string());
 
-                        metadata_args.push("-map".to_string());
-                        metadata_args.push("1".to_string());
+                    metadata_args.push("-map".to_string());
+                    metadata_args.push("1".to_string());
 
-                        metadata_args.push("-disposition:v:1".to_string());
-                        metadata_args.push("attached_pic".to_string());
-                    }
+                    metadata_args.push("-disposition:v:1".to_string());
+                    metadata_args.push("attached_pic".to_string());
                 }
             }
         }
@@ -572,6 +571,7 @@ impl FFMPEG {
                 .as_ref()
                 .map(|v| v.as_ref());
             let metadata_config = video_options.metadata_config.as_ref();
+            let thumbnail_path = video_options.custom_thumbnail_path.as_deref();
 
             match ffmpeg_instance
                 .compress_video(
@@ -586,6 +586,7 @@ impl FFMPEG {
                     fps,
                     transforms_history,
                     metadata_config,
+                    thumbnail_path,
                 )
                 .await
             {
