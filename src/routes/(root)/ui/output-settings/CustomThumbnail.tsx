@@ -71,7 +71,6 @@ function CustomThumbnail({ videoIndex }: CustomThumbnailProps) {
               filePath
           }
         }
-        toast.success('Thumbnail selected successfully')
       }
     } catch (error: any) {
       toast.error(error?.message ?? 'Could not select thumbnail image.')

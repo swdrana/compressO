@@ -91,10 +91,58 @@ impl FFMPEG {
             .iter()
             .collect();
 
-        let output_path = &output_file.display().to_string();
+        let mut cmd_args = vec!["-i", &video_path];
 
+        if convert_to_extension != "webm" {
+            if let Some(thumb_path) = custom_thumbnail_path {
+                if thumb_path.len() > 0 {
+                    cmd_args.extend_from_slice(&["-i", thumb_path]);
+                }
+            }
+        }
+
+        // Preserve existing metadata
+        cmd_args.extend_from_slice(&["-map_metadata", "0"]);
+
+        cmd_args.extend_from_slice(&[
+            "-hide_banner",
+            "-progress",
+            "-",
+            "-nostats",
+            "-loglevel",
+            "error",
+        ]);
+
+        let mut cmd_args = match preset_name {
+            Some(preset) => match preset {
+                "thunderbolt" => cmd_args,
+                _ => {
+                    cmd_args.extend_from_slice(&[
+                        "-pix_fmt:v:0",
+                        "yuv420p",
+                        "-b:v:0",
+                        "0",
+                        "-movflags",
+                        "+faststart",
+                        "-preset",
+                        "slow",
+                    ]);
+                    cmd_args
+                }
+            },
+            None => cmd_args,
+        };
+
+        // Codec
+        if convert_to_extension == "webm" {
+            cmd_args.extend_from_slice(&["-c:v:0", "libvpx-vp9"]);
+        } else {
+            cmd_args.extend_from_slice(&["-c:v:0", "libx264"]);
+        }
+
+        // Quality
         let max_crf: u16 = 36;
-        let min_crf: u16 = 24; // Lower the CRF, higher the quality
+        let min_crf: u16 = 24;
         let default_crf: u16 = 28;
         let compression_quality = if (0..=100).contains(&quality) {
             let diff = (max_crf - min_crf) - ((max_crf - min_crf) * quality) / 100;
@@ -102,97 +150,8 @@ impl FFMPEG {
         } else {
             format!("{default_crf}")
         };
-        let compression_quality_str = compression_quality.as_str();
+        cmd_args.extend_from_slice(&["-crf", compression_quality.as_str()]);
 
-        let codec = "libx264";
-
-        let mut cmd = match preset_name {
-            Some(preset) => match preset {
-                "thunderbolt" => {
-                    let mut args = vec!["-i", &video_path];
-
-                    if convert_to_extension != "webm" {
-                        if let Some(thumb_path) = custom_thumbnail_path {
-                            if thumb_path.len() > 0 {
-                                args.extend_from_slice(&["-i", thumb_path]);
-                            }
-                        }
-                    }
-
-                    args.extend_from_slice(&[
-                        "-hide_banner",
-                        "-progress",
-                        "-",
-                        "-nostats",
-                        "-loglevel",
-                        "error",
-                        "-c:v:0",
-                        codec,
-                        "-crf",
-                        compression_quality_str,
-                    ]);
-                    args
-                }
-                _ => {
-                    let mut args = vec!["-i", &video_path];
-
-                    if convert_to_extension != "webm" {
-                        if let Some(thumb_path) = custom_thumbnail_path {
-                            if thumb_path.len() > 0 {
-                                args.extend_from_slice(&["-i", thumb_path]);
-                            }
-                        }
-                    }
-
-                    args.extend_from_slice(&[
-                        "-hide_banner",
-                        "-progress",
-                        "-",
-                        "-nostats",
-                        "-loglevel",
-                        "error",
-                        "-pix_fmt:v:0",
-                        "yuv420p",
-                        "-c:v:0",
-                        codec,
-                        "-b:v:0",
-                        "0",
-                        "-movflags",
-                        "+faststart",
-                        "-preset",
-                        "slow",
-                        "-crf",
-                        compression_quality_str,
-                    ]);
-                    args
-                }
-            },
-            None => {
-                let mut args = vec!["-i", &video_path];
-
-                if convert_to_extension != "webm" {
-                    if let Some(thumb_path) = custom_thumbnail_path {
-                        if thumb_path.len() > 0 {
-                            args.extend_from_slice(&["-i", thumb_path]);
-                        }
-                    }
-                }
-
-                args.extend_from_slice(&[
-                    "-hide_banner",
-                    "-progress",
-                    "-",
-                    "-nostats",
-                    "-loglevel",
-                    "error",
-                    "-c:v:0",
-                    codec,
-                    "-crf",
-                    compression_quality_str,
-                ]);
-                args
-            }
-        };
         // Transforms
         let transform_filters = if let Some(transforms) = transforms_history {
             self.build_ffmpeg_filters(transforms)
@@ -217,24 +176,18 @@ impl FFMPEG {
 
         vf_filter.push_str(&pad_filter);
 
-        cmd.push("-filter:v:0");
-        cmd.push(&vf_filter);
+        cmd_args.push("-filter:v:0");
+        cmd_args.push(&vf_filter);
 
         // FPS
         if let Some(fps_val) = fps {
-            cmd.push("-r");
-            cmd.push(fps_val);
-        }
-
-        // Webm
-        if convert_to_extension == "webm" {
-            cmd.push("-c:v:0");
-            cmd.push("libvpx-vp9");
+            cmd_args.push("-r");
+            cmd_args.push(fps_val);
         }
 
         // Mute Audio
         if should_mute_video {
-            cmd.push("-an")
+            cmd_args.push("-an")
         }
 
         let mut metadata_args: Vec<String> = Vec::new();
@@ -287,10 +240,13 @@ impl FFMPEG {
             if let Some(thumb_path) = custom_thumbnail_path {
                 if thumb_path.len() > 0 {
                     metadata_args.push("-c:v:1".to_string());
-                    metadata_args.push("copy".to_string());
+                    if thumb_path.to_lowercase().ends_with(".webp") {
+                        metadata_args.push("png".to_string());
+                    } else {
+                        metadata_args.push("copy".to_string());
+                    }
 
-                    metadata_args.push("-map".to_string());
-                    metadata_args.push("0".to_string());
+                    cmd_args.extend_from_slice(&["-map", "0"]);
 
                     metadata_args.push("-map".to_string());
                     metadata_args.push("1".to_string());
@@ -302,17 +258,18 @@ impl FFMPEG {
         }
 
         for arg in metadata_args.iter().map(|s| s.as_str()) {
-            cmd.push(arg);
+            cmd_args.push(arg);
         }
 
-        cmd.push(output_path);
-        cmd.push("-y");
+        // Output path
+        let output_path = output_file.display().to_string();
+        cmd_args.extend_from_slice(&["-y", &output_path]);
 
-        log::info!("[ffmpeg] final command{:?}", cmd);
+        log::info!("[ffmpeg] final command{:?}", cmd_args);
 
         let command = self
             .ffmpeg
-            .args(cmd)
+            .args(cmd_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
@@ -433,10 +390,10 @@ impl FFMPEG {
                         }
                     }
 
-                    if cp_clone2.wait().is_ok() {
-                        return 0;
+                    match cp_clone2.wait() {
+                        Ok(status) if status.success() => 0,
+                        _ => 1,
                     }
-                    1
                 });
 
                 let app_clone = self.app.clone();
@@ -561,7 +518,7 @@ impl FFMPEG {
 
             let convert_to_extension = &video_options.convert_to_extension;
             let preset_name = video_options.preset_name.as_deref();
-            let batch_id_for_compression = batch_id.clone();
+            let batch_id_for_compression = batch_id;
             let should_mute_video = video_options.should_mute_video;
             let quality = video_options.quality;
             let dimensions = video_options.dimensions;
