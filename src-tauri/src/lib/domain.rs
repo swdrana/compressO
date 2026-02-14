@@ -152,6 +152,7 @@ pub struct VideoCompressionConfig {
     pub quality: u16,
     pub dimensions: Option<(u32, u32)>,
     pub fps: Option<String>,
+    pub video_codec: Option<String>,
     pub transforms_history: Option<Vec<Value>>,
     pub metadata_config: Option<VideoMetadataConfig>,
     pub custom_thumbnail_path: Option<String>,

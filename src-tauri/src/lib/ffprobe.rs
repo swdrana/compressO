@@ -180,6 +180,112 @@ impl FFPROBE {
         }
     }
 
+    // Get the video codec name from the source video
+    pub async fn get_video_codec(&mut self, path: &str) -> Result<Option<String>, String> {
+        let command = self
+            .ffprobe
+            .args([
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=codec_name",
+                "-of",
+                "json",
+                path,
+            ])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        match SharedChild::spawn(command) {
+            Ok(child) => {
+                let cp = Arc::new(child);
+                let cp_clone1 = cp.clone();
+                let cp_clone2 = cp.clone();
+
+                let window = match self.app.get_webview_window("main") {
+                    Some(window) => window,
+                    None => return Err(String::from("Could not attach to main window")),
+                };
+
+                let destroy_event_id = window.listen(
+                    TauriEvents::Destroyed.get_str("key").unwrap(),
+                    move |_| match cp.kill() {
+                        Ok(_) => log::info!("[ffprobe-sidecar] child process killed."),
+                        Err(err) => log::error!(
+                            "[ffprobe-sidecar] child process could not be killed {}",
+                            err
+                        ),
+                    },
+                );
+
+                let thread = tokio::task::spawn(async move {
+                    let codec = if let Some(stdout) = cp_clone1.take_stdout() {
+                        let reader = std::io::BufReader::new(stdout);
+                        let mut json_str = String::new();
+
+                        for line_res in reader.lines() {
+                            if let Ok(line) = line_res {
+                                json_str.push_str(&line);
+                            } else {
+                                break;
+                            }
+                        }
+
+                        if let Ok(json) = serde_json::from_str::<Value>(&json_str) {
+                            if let Some(streams) = json.get("streams").and_then(|s| s.as_array()) {
+                                if let Some(stream) = streams.first() {
+                                    stream
+                                        .get("codec_name")
+                                        .and_then(|c| c.as_str())
+                                        .map(String::from)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    if cp_clone1.wait().is_ok() {
+                        (0, codec)
+                    } else {
+                        (1, None)
+                    }
+                });
+
+                let result = match thread.await {
+                    Ok((exit_status, codec)) => {
+                        if exit_status == 1 {
+                            Err("Failed to get video codec".to_string())
+                        } else {
+                            Ok(codec)
+                        }
+                    }
+                    Err(err) => Err(err.to_string()),
+                };
+
+                // Cleanup
+                window.unlisten(destroy_event_id);
+                if let Err(err) = cp_clone2.kill() {
+                    log::error!(
+                        "[ffprobe-sidecar] child process could not be killed {}",
+                        err
+                    );
+                }
+
+                result
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+
     // Check if the media has an audio stream or not
     pub async fn has_audio_stream(&mut self, path: &str) -> Result<bool, String> {
         let command = self

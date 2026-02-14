@@ -98,6 +98,7 @@ export type VideoCompressionConfig = {
   quality: number
   dimensions?: [number, number] | null
   fps?: string | null
+  videoCodec?: string | null
   transformsHistory?: VideoTransformsHistory[] | null
   metadataConfig?: VideoMetadataConfig | null
   customThumbnailPath?: string | null

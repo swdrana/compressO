@@ -3,31 +3,10 @@ import {
   type TooltipProps as NextUITooltipProps,
 } from '@heroui/react'
 
-import { blurCSS, getBlurPseudoCSS } from '@/ui/BackdropBlur'
-import { getPlatform } from '@/utils/fs'
-import { cn } from '@/utils/tailwind'
-
-const { isWindows, isMacOS } = getPlatform()
-
-const blurCSSBefore = getBlurPseudoCSS('before')
-
 interface TooltipProps extends NextUITooltipProps {}
 function Tooltip(props: TooltipProps) {
   return (
-    <NextUITooltip
-      delay={1000}
-      showArrow
-      size="sm"
-      {...props}
-      className={cn(isMacOS || isWindows ? blurCSS : '', props?.className)}
-      classNames={{
-        base: cn([
-          isMacOS || isWindows ? blurCSSBefore : '',
-          props?.classNames?.arrow ?? '',
-        ]),
-        ...(props?.classNames ?? {}),
-      }}
-    >
+    <NextUITooltip delay={1000} showArrow size="sm" {...props}>
       <span>{props?.children}</span>
     </NextUITooltip>
   )

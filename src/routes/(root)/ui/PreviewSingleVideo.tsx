@@ -191,7 +191,7 @@ function PreviewSingleVideo({ videoIndex }: PreviewSingleVideoProps) {
         <div className="blur-2xl  z-[10] absolute top-0 right-0 bottom-0 left-0 rounded-full" />
       </div>
       <p className="italic text-sm mt-10 text-gray-600 dark:text-gray-400 text-center animate-pulse">
-        Processing... ...
+        Processing...
       </p>
       <p
         className={`not-italic text-2xl text-center font-bold text-primary my-4 opacity-${

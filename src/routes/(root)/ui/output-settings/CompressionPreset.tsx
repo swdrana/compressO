@@ -11,7 +11,19 @@ import { compressionPresets } from '@/types/compression'
 import { slideDownTransition } from '@/utils/animation'
 import { appProxy, normalizeBatchVideosConfig } from '../../-state'
 
-const presets = Object.keys(compressionPresets)
+const PRESETS: {
+  name: keyof typeof compressionPresets
+  description: React.ReactNode
+}[] = [
+  {
+    name: 'ironclad',
+    description: <p>Optimal size but slightly slower processing</p>,
+  },
+  {
+    name: 'thunderbolt',
+    description: <p>Slightly larger size but faster processing</p>,
+  },
+]
 
 type CompressionPresetProps = {
   videoIndex: number
@@ -104,14 +116,14 @@ function CompressionPreset({ videoIndex }: CompressionPresetProps) {
                   label: '!text-gray-600 dark:!text-gray-400 text-xs',
                 }}
               >
-                {presets?.map((preset) => (
+                {PRESETS?.map((preset) => (
                   // Right now if we use SelectItem it breaks the code so opting for SelectItem from NextUI directly
                   <SelectItem
-                    key={preset}
-                    textValue={preset}
+                    key={preset.name}
+                    textValue={preset.name}
                     className="flex justify-center items-center"
                     endContent={
-                      preset === compressionPresets.ironclad ? (
+                      preset.name === compressionPresets.ironclad ? (
                         <Tooltip content="Recommended" aria-label="Recommended">
                           <Icon
                             name="star"
@@ -121,8 +133,9 @@ function CompressionPreset({ videoIndex }: CompressionPresetProps) {
                         </Tooltip>
                       ) : null
                     }
+                    description={preset.description}
                   >
-                    {preset}
+                    {preset.name}
                   </SelectItem>
                 ))}
               </Select>

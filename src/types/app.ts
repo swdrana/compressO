@@ -33,6 +33,8 @@ export type VideoConfig = {
   customDimensions?: [number, number]
   shouldEnableCustomFPS?: boolean
   customFPS?: number
+  shouldEnableCustomVideoCodec?: boolean
+  customVideoCodec?: string
   shouldTransformVideo?: boolean
   transformVideoConfig?: {
     transforms: VideoTransforms

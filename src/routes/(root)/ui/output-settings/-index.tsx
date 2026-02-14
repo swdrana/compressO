@@ -24,6 +24,7 @@ import Metadata from './Metadata'
 import MuteAudio from './MuteAudio'
 import TransformVideo from './TransformVideo'
 import TrimVideo from './TrimVideo'
+import VideoCodec from './VideoCodec'
 import VideoDimensions from './VideoDimensions'
 import VideoExtension from './VideoExtension'
 import VideoFPS from './VideoFPS'
@@ -122,6 +123,9 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
               : null,
           fps: v.config?.shouldEnableCustomFPS
             ? v.config.customFPS?.toString?.()
+            : null,
+          videoCodec: v.config?.shouldEnableCustomVideoCodec
+            ? v.config.customVideoCodec
             : null,
           transformsHistory: v.config?.shouldTransformVideo
             ? ((v.config.transformVideoConfig?.transformsHistory ??
@@ -225,6 +229,10 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
             <div>
               <>
                 <CompressionPreset videoIndex={videoIndex} />
+                <Divider className="my-3" />
+              </>
+              <>
+                <VideoCodec videoIndex={videoIndex} />
                 <Divider className="my-3" />
               </>
               <>

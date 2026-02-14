@@ -66,6 +66,7 @@ impl FFMPEG {
         quality: u16,
         dimensions: Option<(u32, u32)>,
         fps: Option<&str>,
+        video_codec: Option<&str>,
         transforms_history: Option<&Vec<Value>>,
         metadata_config: Option<&VideoMetadataConfig>,
         custom_thumbnail_path: Option<&str>,
@@ -145,11 +146,32 @@ impl FFMPEG {
         };
 
         // Codec
-        if convert_to_extension == "webm" {
-            cmd_args.extend_from_slice(&["-c:v:0", "libvpx-vp9"]);
-        } else {
-            cmd_args.extend_from_slice(&["-c:v:0", "libx264"]);
-        }
+        let output_codec: String = {
+            fn default_codec(convert_to_extension: &str) -> String {
+                match convert_to_extension {
+                    "webm" => "libvpx-vp9".to_string(),
+                    _ => "libx264".to_string(),
+                }
+            }
+            if let Some(codec) = video_codec {
+                codec.to_string()
+            } else {
+                if preset_name.is_none() {
+                    let source_codec = {
+                        let mut ffprobe = FFPROBE::new(&self.app)?;
+                        ffprobe.get_video_codec(video_path).await?
+                    };
+
+                    match source_codec {
+                        Some(codec_name) => codec_name.to_string(),
+                        None => default_codec(convert_to_extension),
+                    };
+                }
+                default_codec(convert_to_extension)
+            }
+        };
+        println!(">> {:?}", output_codec);
+        cmd_args.extend_from_slice(&["-c:v:0", output_codec.as_str()]);
 
         // Quality
         let max_crf: u16 = 36;
@@ -630,6 +652,7 @@ impl FFMPEG {
             let quality = video_options.quality;
             let dimensions = video_options.dimensions;
             let fps = video_options.fps.as_deref();
+            let video_codec = video_options.video_codec.as_deref();
             let transforms_history = video_options
                 .transforms_history
                 .as_ref()
@@ -649,6 +672,7 @@ impl FFMPEG {
                     quality,
                     dimensions,
                     fps,
+                    video_codec,
                     transforms_history,
                     metadata_config,
                     thumbnail_path,

@@ -5,28 +5,10 @@ import {
   type SelectProps as NextUISelectProps,
 } from '@heroui/react'
 
-import { blurCSS } from '@/ui/BackdropBlur'
-import { getPlatform } from '@/utils/fs'
-import { cn } from '@/utils/tailwind'
-
-const { isWindows, isMacOS } = getPlatform()
-
 interface SelectProps extends NextUISelectProps {}
 function Select(props: SelectProps) {
   return (
-    <NextUISelect
-      radius="md"
-      size="sm"
-      labelPlacement="outside"
-      {...props}
-      classNames={{
-        popoverContent: cn([
-          isWindows || isMacOS ? blurCSS : '',
-          props?.classNames?.popoverContent ?? '',
-        ]),
-        ...(props?.classNames ?? {}),
-      }}
-    />
+    <NextUISelect radius="md" size="sm" labelPlacement="outside" {...props} />
   )
 }
 
