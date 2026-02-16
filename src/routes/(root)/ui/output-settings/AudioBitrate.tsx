@@ -1,8 +1,11 @@
 import { SelectItem } from '@heroui/react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Select from '@/components/Select'
+import Switch from '@/components/Switch'
+import { slideDownTransition } from '@/utils/animation'
 import { appProxy, normalizeBatchVideosConfig } from '../../-state'
 
 const AUDIO_BITRATES = [
@@ -31,11 +34,44 @@ function AudioBitrate({ videoIndex }: AudioBitrateProps) {
   } = useSnapshot(appProxy)
   const video = videos.length > 0 && videoIndex >= 0 ? videos[videoIndex] : null
   const { config, videoInfoRaw } = video ?? {}
-  const { audioConfig } = config ?? commonConfigForBatchCompression ?? {}
+  const { audioConfig, shouldEnableCustomBitrate } =
+    config ?? commonConfigForBatchCompression ?? {}
+
+  const handleSwitchToggle = useCallback(() => {
+    if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
+      const videoConfig = appProxy.state.videos[videoIndex].config
+      videoConfig.shouldEnableCustomBitrate = !shouldEnableCustomBitrate
+      if (!shouldEnableCustomBitrate) {
+        if (!videoConfig.audioConfig) {
+          videoConfig.audioConfig = { volume: 100 }
+        }
+        videoConfig.audioConfig.bitrate = 128
+      } else {
+        if (videoConfig.audioConfig) {
+          videoConfig.audioConfig.bitrate = null
+        }
+      }
+      appProxy.state.videos[videoIndex].isConfigDirty = true
+    } else {
+      if (appProxy.state.videos.length > 1) {
+        const commonConfig = appProxy.state.commonConfigForBatchCompression
+        commonConfig.shouldEnableCustomBitrate = !shouldEnableCustomBitrate
+        if (!commonConfig.audioConfig) {
+          commonConfig.audioConfig = { volume: 100 }
+        }
+        if (!shouldEnableCustomBitrate) {
+          commonConfig.audioConfig.bitrate = 128
+        } else {
+          commonConfig.audioConfig.bitrate = null
+        }
+        normalizeBatchVideosConfig()
+      }
+    }
+  }, [videoIndex, shouldEnableCustomBitrate])
 
   const handleBitrateChange = useCallback(
     (value: string) => {
-      const bitrate = value === 'original' ? null : Number.parseInt(value, 10)
+      const bitrate = Number.parseInt(value, 10)
 
       if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
         const videoConfig = appProxy.state.videos[videoIndex].config
@@ -68,39 +104,51 @@ function AudioBitrate({ videoIndex }: AudioBitrateProps) {
     audioConfig?.volume === 0
 
   const hasNoAudio = videoInfoRaw?.audioStreams?.length === 0
-  const currentValue = audioConfig?.bitrate ?? 'original'
+  const currentValue = audioConfig?.bitrate ?? 128
 
   return (
-    <Select
-      fullWidth
-      label="Bitrate:"
-      className="block flex-shrink-0 rounded-2xl"
-      size="sm"
-      value={currentValue?.toString() ?? 'original'}
-      selectedKeys={[currentValue?.toString() ?? 'original']}
-      onChange={(evt) => {
-        const value = evt?.target?.value
-        if (value) {
-          handleBitrateChange(value)
-        }
-      }}
-      selectionMode="single"
-      isDisabled={shouldDisableInput || hasNoAudio}
-      classNames={{
-        label: '!text-gray-600 dark:!text-gray-400 text-sm',
-      }}
-    >
-      <SelectItem key="original" textValue="Original">
-        Original
-      </SelectItem>
-      {
-        AUDIO_BITRATES.map((bitrate) => (
-          <SelectItem key={bitrate.value} textValue={bitrate.label}>
-            {bitrate.label}
-          </SelectItem>
-        )) as any
-      }
-    </Select>
+    <div>
+      <Switch
+        isSelected={shouldEnableCustomBitrate}
+        onValueChange={handleSwitchToggle}
+        isDisabled={shouldDisableInput || hasNoAudio}
+      >
+        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
+          Bitrate
+        </p>
+      </Switch>
+      <AnimatePresence mode="wait">
+        {shouldEnableCustomBitrate ? (
+          <motion.div {...slideDownTransition}>
+            <Select
+              fullWidth
+              label="Bitrate:"
+              className="block flex-shrink-0 rounded-2xl !mt-8"
+              size="sm"
+              value={currentValue?.toString() ?? '128'}
+              selectedKeys={[currentValue?.toString() ?? '128']}
+              onChange={(evt) => {
+                const value = evt?.target?.value
+                if (value) {
+                  handleBitrateChange(value)
+                }
+              }}
+              selectionMode="single"
+              isDisabled={!shouldEnableCustomBitrate || shouldDisableInput}
+              classNames={{
+                label: '!text-gray-600 dark:!text-gray-400 text-xs',
+              }}
+            >
+              {AUDIO_BITRATES.map((bitrate) => (
+                <SelectItem key={bitrate.value} textValue={bitrate.label}>
+                  {bitrate.label}
+                </SelectItem>
+              ))}
+            </Select>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
   )
 }
 

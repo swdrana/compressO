@@ -61,6 +61,8 @@ export type VideoConfig = {
   metadataConfig?: VideoMetadataConfig | null
   customThumbnailPath?: string | null
   shouldEnableCustomThumbnail?: boolean
+  shouldEnableCustomChannel?: boolean
+  shouldEnableCustomBitrate?: boolean
 }
 
 export type Video = {

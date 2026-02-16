@@ -26,12 +26,48 @@ function AudioChannels({ videoIndex }: AudioChannelsProps) {
   } = useSnapshot(appProxy)
   const video = videos.length > 0 && videoIndex >= 0 ? videos[videoIndex] : null
   const { config, videoInfoRaw } = video ?? {}
-  const { audioConfig } = config ?? commonConfigForBatchCompression ?? {}
+  const { audioConfig, shouldEnableCustomChannel } =
+    config ?? commonConfigForBatchCompression ?? {}
+
+  const handleSwitchToggle = useCallback(() => {
+    if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
+      const videoConfig = appProxy.state.videos[videoIndex].config
+      videoConfig.shouldEnableCustomChannel = !shouldEnableCustomChannel
+      if (!shouldEnableCustomChannel) {
+        if (!videoConfig.audioConfig) {
+          videoConfig.audioConfig = { volume: 100 }
+        }
+        videoConfig.audioConfig.audioChannelConfig = {
+          channelLayout: 'stereo',
+        }
+      } else {
+        if (videoConfig.audioConfig) {
+          videoConfig.audioConfig.audioChannelConfig = null
+        }
+      }
+      appProxy.state.videos[videoIndex].isConfigDirty = true
+    } else {
+      if (appProxy.state.videos.length > 1) {
+        const commonConfig = appProxy.state.commonConfigForBatchCompression
+        commonConfig.shouldEnableCustomChannel = !shouldEnableCustomChannel
+        if (!commonConfig.audioConfig) {
+          commonConfig.audioConfig = { volume: 100 }
+        }
+        if (!shouldEnableCustomChannel) {
+          commonConfig.audioConfig.audioChannelConfig = {
+            channelLayout: 'stereo',
+          }
+        } else {
+          commonConfig.audioConfig.audioChannelConfig = null
+        }
+        normalizeBatchVideosConfig()
+      }
+    }
+  }, [videoIndex, shouldEnableCustomChannel])
 
   const handleChannelLayoutChange = useCallback(
     (value: string) => {
-      const newLayout =
-        value === 'original' ? null : (value as 'mono' | 'stereo')
+      const newLayout = value as 'mono' | 'stereo'
 
       if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
         const videoConfig = appProxy.state.videos[videoIndex].config
@@ -43,13 +79,11 @@ function AudioChannels({ videoIndex }: AudioChannelsProps) {
             channelLayout: newLayout,
             monoSource: { left: true, right: true },
           }
-        } else if (newLayout === 'stereo') {
+        } else {
           videoConfig.audioConfig.audioChannelConfig = {
             channelLayout: newLayout,
             stereoSwapChannels: false,
           }
-        } else {
-          videoConfig.audioConfig.audioChannelConfig = null
         }
         appProxy.state.videos[videoIndex].isConfigDirty = true
       } else {
@@ -65,15 +99,12 @@ function AudioChannels({ videoIndex }: AudioChannelsProps) {
                 channelLayout: newLayout,
                 monoSource: { left: true, right: true },
               }
-          } else if (newLayout === 'stereo') {
+          } else {
             appProxy.state.commonConfigForBatchCompression.audioConfig.audioChannelConfig =
               {
                 channelLayout: newLayout,
                 stereoSwapChannels: false,
               }
-          } else {
-            appProxy.state.commonConfigForBatchCompression.audioConfig.audioChannelConfig =
-              null
           }
           normalizeBatchVideosConfig()
         }
@@ -86,18 +117,12 @@ function AudioChannels({ videoIndex }: AudioChannelsProps) {
     (isSelected: boolean) => {
       if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
         const videoConfig = appProxy.state.videos[videoIndex].config
-        if (!videoConfig.audioConfig) {
-          videoConfig.audioConfig = { volume: 100 }
-        }
         if (!videoConfig.audioConfig.audioChannelConfig) {
           videoConfig.audioConfig.audioChannelConfig = {
             channelLayout: 'mono',
           }
         }
-        if (
-          videoConfig.audioConfig.audioChannelConfig &&
-          !videoConfig.audioConfig.audioChannelConfig.monoSource
-        ) {
+        if (!videoConfig.audioConfig.audioChannelConfig.monoSource) {
           videoConfig.audioConfig.audioChannelConfig.monoSource = {
             left: true,
             right: true,
@@ -107,11 +132,6 @@ function AudioChannels({ videoIndex }: AudioChannelsProps) {
         appProxy.state.videos[videoIndex].isConfigDirty = true
       } else {
         if (appProxy.state.videos.length > 1) {
-          if (!appProxy.state.commonConfigForBatchCompression.audioConfig) {
-            appProxy.state.commonConfigForBatchCompression.audioConfig = {
-              volume: 100,
-            }
-          }
           if (
             !appProxy.state.commonConfigForBatchCompression.audioConfig
               .audioChannelConfig
@@ -144,9 +164,6 @@ function AudioChannels({ videoIndex }: AudioChannelsProps) {
     (isSelected: boolean) => {
       if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
         const videoConfig = appProxy.state.videos[videoIndex].config
-        if (!videoConfig.audioConfig) {
-          videoConfig.audioConfig = { volume: 100 }
-        }
         if (!videoConfig.audioConfig.audioChannelConfig) {
           videoConfig.audioConfig.audioChannelConfig = {
             channelLayout: 'mono',
@@ -163,11 +180,6 @@ function AudioChannels({ videoIndex }: AudioChannelsProps) {
         appProxy.state.videos[videoIndex].isConfigDirty = true
       } else {
         if (appProxy.state.videos.length > 1) {
-          if (!appProxy.state.commonConfigForBatchCompression.audioConfig) {
-            appProxy.state.commonConfigForBatchCompression.audioConfig = {
-              volume: 100,
-            }
-          }
           if (
             !appProxy.state.commonConfigForBatchCompression.audioConfig
               .audioChannelConfig
@@ -208,9 +220,6 @@ function AudioChannels({ videoIndex }: AudioChannelsProps) {
 
     if (videoIndex >= 0 && appProxy.state.videos[videoIndex]?.config) {
       const videoConfig = appProxy.state.videos[videoIndex].config
-      if (!videoConfig.audioConfig) {
-        videoConfig.audioConfig = { volume: 100 }
-      }
       if (!videoConfig.audioConfig.audioChannelConfig) {
         videoConfig.audioConfig.audioChannelConfig = {
           channelLayout: 'stereo',
@@ -220,11 +229,6 @@ function AudioChannels({ videoIndex }: AudioChannelsProps) {
       appProxy.state.videos[videoIndex].isConfigDirty = true
     } else {
       if (appProxy.state.videos.length > 1) {
-        if (!appProxy.state.commonConfigForBatchCompression.audioConfig) {
-          appProxy.state.commonConfigForBatchCompression.audioConfig = {
-            volume: 100,
-          }
-        }
         if (
           !appProxy.state.commonConfigForBatchCompression.audioConfig
             .audioChannelConfig
@@ -252,79 +256,94 @@ function AudioChannels({ videoIndex }: AudioChannelsProps) {
 
   return (
     <div>
-      <Select
-        fullWidth
-        label="Channel:"
-        className="block flex-shrink-0 rounded-2xl"
-        size="sm"
-        value={audioConfig?.audioChannelConfig?.channelLayout ?? 'original'}
-        selectedKeys={[
-          audioConfig?.audioChannelConfig?.channelLayout ?? 'original',
-        ]}
-        onChange={(evt) => {
-          const value = evt?.target?.value
-          if (value) {
-            handleChannelLayoutChange(value)
-          }
-        }}
-        selectionMode="single"
+      <Switch
+        isSelected={shouldEnableCustomChannel}
+        onValueChange={handleSwitchToggle}
         isDisabled={shouldDisableInput || hasNoAudio}
-        classNames={{
-          label: '!text-gray-600 dark:!text-gray-400 text-sm',
-        }}
       >
-        <SelectItem key="original" textValue="Original">
-          Original
-        </SelectItem>
-        <SelectItem key="mono" textValue="Mono">
-          Mono
-        </SelectItem>
-        <SelectItem key="stereo" textValue="Stereo">
-          Stereo
-        </SelectItem>
-      </Select>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
+          Channel
+        </p>
+      </Switch>
       <AnimatePresence mode="wait">
-        {audioConfig?.audioChannelConfig?.channelLayout === 'mono' ? (
-          <motion.div {...slideDownTransition} className="mt-4">
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-              Mono Source:
-            </p>
-            <div className="flex gap-4">
-              <Checkbox
-                isSelected={
-                  audioConfig?.audioChannelConfig?.monoSource?.left ?? true
+        {shouldEnableCustomChannel ? (
+          <motion.div {...slideDownTransition}>
+            <Select
+              fullWidth
+              label="Layout:"
+              className="block flex-shrink-0 rounded-2xl !mt-8"
+              size="sm"
+              value={audioConfig?.audioChannelConfig?.channelLayout ?? 'stereo'}
+              selectedKeys={[
+                audioConfig?.audioChannelConfig?.channelLayout ?? 'stereo',
+              ]}
+              onChange={(evt) => {
+                const value = evt?.target?.value
+                if (value) {
+                  handleChannelLayoutChange(value)
                 }
-                onValueChange={handleMonoLeftChange}
-                isDisabled={shouldDisableInput}
-              >
-                <span className="text-sm">Left</span>
-              </Checkbox>
-              <Divider orientation="vertical" className="h-5" />
-              <Checkbox
-                isSelected={
-                  audioConfig?.audioChannelConfig?.monoSource?.right ?? true
-                }
-                onValueChange={handleMonoRightChange}
-                isDisabled={shouldDisableInput}
-              >
-                <span className="text-sm">Right</span>
-              </Checkbox>
-            </div>
-          </motion.div>
-        ) : null}
-        {audioConfig?.audioChannelConfig?.channelLayout === 'stereo' ? (
-          <motion.div {...slideDownTransition} className="mt-4">
-            <Switch
-              isSelected={
-                audioConfig?.audioChannelConfig?.stereoSwapChannels ?? false
-              }
-              onValueChange={handleStereoSwapChange}
-              isDisabled={shouldDisableInput}
+              }}
+              selectionMode="single"
+              isDisabled={!shouldEnableCustomChannel || shouldDisableInput}
+              classNames={{
+                label: '!text-gray-600 dark:!text-gray-400 text-xs',
+              }}
             >
-              <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
-                Swap left and right channels
-              </p>
-            </Switch>
+              <SelectItem key="mono" textValue="Mono">
+                Mono
+              </SelectItem>
+              <SelectItem key="stereo" textValue="Stereo">
+                Stereo
+              </SelectItem>
+            </Select>
+            <AnimatePresence mode="wait">
+              {audioConfig?.audioChannelConfig?.channelLayout === 'mono' ? (
+                <motion.div {...slideDownTransition} className="mt-4">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    Mono Source:
+                  </p>
+                  <div className="flex gap-4">
+                    <Checkbox
+                      isSelected={
+                        audioConfig?.audioChannelConfig?.monoSource?.left ??
+                        true
+                      }
+                      onValueChange={handleMonoLeftChange}
+                      isDisabled={shouldDisableInput}
+                    >
+                      <span className="text-sm">Left</span>
+                    </Checkbox>
+                    <Divider orientation="vertical" className="h-5" />
+                    <Checkbox
+                      isSelected={
+                        audioConfig?.audioChannelConfig?.monoSource?.right ??
+                        true
+                      }
+                      onValueChange={handleMonoRightChange}
+                      isDisabled={shouldDisableInput}
+                    >
+                      <span className="text-sm">Right</span>
+                    </Checkbox>
+                  </div>
+                </motion.div>
+              ) : null}
+              {audioConfig?.audioChannelConfig?.channelLayout === 'stereo' ? (
+                <motion.div {...slideDownTransition} className="mt-4">
+                  <Switch
+                    isSelected={
+                      audioConfig?.audioChannelConfig?.stereoSwapChannels ??
+                      false
+                    }
+                    onValueChange={handleStereoSwapChange}
+                    isDisabled={shouldDisableInput}
+                  >
+                    <p className="text-gray-600 dark:text-gray-400 text-sm mr-2 w-full">
+                      Swap left and right channels
+                    </p>
+                  </Switch>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </motion.div>
         ) : null}
       </AnimatePresence>

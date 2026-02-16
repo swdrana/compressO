@@ -34,6 +34,8 @@ export const videoConfigInitialState: VideoConfig = {
   shouldEnableCustomThumbnail: false,
   shouldTrimVideo: false,
   isVideoTrimEditMode: false,
+  shouldEnableCustomChannel: false,
+  shouldEnableCustomBitrate: false,
 }
 
 const appInitialState: App = {

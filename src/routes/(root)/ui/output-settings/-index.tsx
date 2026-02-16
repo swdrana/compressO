@@ -301,15 +301,15 @@ function OutputSettings({ videoIndex }: OutputSettingsProps) {
             <>
               <div className="mb-4">
                 <AudioVolume videoIndex={videoIndex} />
-                <Divider className="my-8" />
+                <Divider className="mt-8" />
               </div>
-              <div className="mt-10">
+              <>
                 <AudioChannels videoIndex={videoIndex} />
                 <Divider className="my-3" />
-              </div>
-              <div className="mt-10">
+              </>
+              <>
                 <AudioBitrate videoIndex={videoIndex} />
-              </div>
+              </>
               {hasNoAudio ? <p className="text-xs">No audio found</p> : null}
             </>
           ) : null}
