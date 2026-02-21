@@ -117,7 +117,6 @@ function CompressionQuality({ videoIndex }: CompressionQualityProps) {
             <Slider
               label
               aria-label="Quality"
-              size="sm"
               marks={[
                 {
                   value: 0,
@@ -132,8 +131,11 @@ function CompressionQuality({ videoIndex }: CompressionQualityProps) {
                   label: 'High',
                 },
               ]}
-              className="mb-8 w-[95%] mx-auto"
-              classNames={{ mark: 'text-xs' }}
+              className="mb-8 mx-auto"
+              classNames={{
+                mark: 'text-[11px] mt-2',
+                base: 'mt-[-10px]',
+              }}
               getValue={(value) => {
                 const val = Array.isArray(value) ? value?.[0] : +value
                 return val < 50
@@ -143,7 +145,7 @@ function CompressionQuality({ videoIndex }: CompressionQualityProps) {
                     : 'High'
               }}
               renderValue={(props) => (
-                <p className="text-primary text-sm font-bold">
+                <p className="text-primary text-xs font-bold">
                   {props?.children}
                 </p>
               )}

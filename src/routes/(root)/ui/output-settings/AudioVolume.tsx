@@ -1,7 +1,6 @@
 import React, { useCallback } from 'react'
 import { snapshot, useSnapshot } from 'valtio'
 
-import Icon from '@/components/Icon'
 import Slider from '@/components/Slider/Slider'
 import { appProxy, normalizeBatchVideosConfig } from '../../-state'
 
@@ -104,7 +103,6 @@ function AudioVolume({ videoIndex }: AudioVolumeProps) {
       <Slider
         label="Volume:"
         aria-label="Audio Volume"
-        size="sm"
         marks={[
           {
             value: 0,
@@ -119,19 +117,20 @@ function AudioVolume({ videoIndex }: AudioVolumeProps) {
             label: 'Full',
           },
         ]}
-        classNames={{ mark: 'text-xs' }}
+        classNames={{
+          mark: 'text-[11px] mt-3',
+          label: 'text-sm text-gray-600 dark:text-gray-400',
+        }}
         getValue={(value) => {
           const val = Array.isArray(value) ? value?.[0] : +value
           return `${Math.round(val)}%`
         }}
         renderValue={(props) => (
-          <p className="text-primary text-sm font-bold">{props?.children}</p>
+          <p className="text-primary text-xs font-bold">{props?.children}</p>
         )}
         value={volume}
         onChange={handleVolumeChange}
         isDisabled={shouldDisableInput}
-        startContent={<Icon name="audioMuted" size={25}></Icon>}
-        endContent={<Icon name="audio" size={20}></Icon>}
       />
     </>
   )

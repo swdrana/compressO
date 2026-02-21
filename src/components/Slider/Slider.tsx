@@ -6,7 +6,7 @@ import {
 interface SliderProps extends NextUISliderProps {}
 
 function Slider(props: SliderProps) {
-  return <NextUISlider {...props} />
+  return <NextUISlider size="lg" {...props} />
 }
 
 export default Slider
