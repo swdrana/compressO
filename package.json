@@ -18,7 +18,7 @@
     "tauri:build:debug": "tauri build --debug",
     "tauri:build:mac:arm64": "tauri build --target aarch64-apple-darwin",
     "tauri:build:mac:x64": "tauri build --target x86_64-apple-darwin",
-    "tauri:build:mac": "./scripts/build-all-mac.sh",
+    "tauri:build:mac": "pnpm tauri:build:mac:arm64 && pnpm tauri:build:mac:x64",
     "homebrew:release": "./scripts/homebrew-release.sh",
     "pnpm:devPreinstall": "fnm use",
     "postinstall": "husky install",

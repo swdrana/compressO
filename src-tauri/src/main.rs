@@ -38,9 +38,7 @@ use std::path::PathBuf;
 const LOG_TARGETS: [LogTarget; 1] = [LogTarget::new(LogTargetKind::Stdout)];
 
 #[cfg(not(debug_assertions))]
-const LOG_TARGETS: [LogTarget; 1] = [LogTarget::new(LogTargetKind::LogDir {
-    file_name: Some("compressO"),
-})];
+const LOG_TARGETS: [LogTarget; 0] = [];
 
 // Global storage for URLs that arrive before app setup completes.
 // "Open with CompressO" triggers `application:openURLs` before app setup is complete
@@ -71,13 +69,11 @@ impl FrontendReady {
 }
 
 fn emit_pending_open_with_app_files(app_handle: &tauri::AppHandle) {
-    log::info!("emit_pending_open_with_app_files called");
     if let Some(pending) = app_handle.try_state::<PendingFiles>() {
         let pending_inner = pending.0.clone();
         let app_handle_clone = app_handle.clone();
 
         let mut list = pending_inner.lock().unwrap();
-        log::info!("Pending files count: {}", list.len());
         if !list.is_empty() {
             let files_to_emit = list.drain(..).collect::<Vec<_>>();
             log::info!("Emitting files on frontend ready: {:?}", files_to_emit);
@@ -86,16 +82,10 @@ fn emit_pending_open_with_app_files(app_handle: &tauri::AppHandle) {
                 log::error!("Failed to emit open-with-app event: {:?}", e);
             }
         }
-    } else {
-        log::warn!("PendingFiles state not found in emit_pending_open_with_app_files");
-    }
+    } 
 }
 
 fn handle_open_with_app(app_handle: &tauri::AppHandle, urls: Vec<Url>) -> Result<(), String> {
-    log::info!("handle_open_with_app called with {} URLs", urls.len());
-    for (i, url) in urls.iter().enumerate() {
-        log::info!("  URL[{}]: {}", i, url);
-    }
 
     let fs_scope = app_handle.fs_scope();
     let asset_scope = app_handle.asset_protocol_scope();
@@ -110,20 +100,10 @@ fn handle_open_with_app(app_handle: &tauri::AppHandle, urls: Vec<Url>) -> Result
         if let Ok(path) = url.to_file_path() {
             if let Err(e) = fs_scope.allow_file(&path) {
                 let path_str = path.to_string_lossy().to_string();
-                log::error!(
-                    "Failed to allow file in fs_scope: {} - Error: {:?}",
-                    path_str,
-                    e
-                );
                 return Err(format!("Failed to allow file in fs_scope: {}", path_str));
             }
             if let Err(e) = asset_scope.allow_file(&path) {
                 let path_str = path.to_string_lossy().to_string();
-                log::error!(
-                    "Failed to allow file in asset_scope: {} - Error: {:?}",
-                    path_str,
-                    e
-                );
                 return Err(format!("Failed to allow file in asset_scope: {}", path_str));
             }
         }
@@ -137,20 +117,17 @@ fn handle_open_with_app(app_handle: &tauri::AppHandle, urls: Vec<Url>) -> Result
             let mut list = pending_inner
                 .lock()
                 .map_err(|e| format!("Failed to lock pending files: {:?}", e))?;
-            log::info!("Adding {} files to pending list (current count: {})", new_files.len(), list.len());
             list.extend(new_files);
         }
 
         if let Some(ready_state) = frontend_ready {
             let is_ready = ready_state.is_ready();
-            log::info!("Frontend ready state: {}", is_ready);
             if is_ready {
                 let app_handle_clone = app_handle.clone();
                 let mut list = pending_inner.lock().unwrap();
                 log::info!("Frontend is ready, emitting {} pending files", list.len());
                 if !list.is_empty() {
                     let files_to_emit = list.drain(..).collect::<Vec<_>>();
-                    log::info!("Emitting files: {:?}", files_to_emit);
                     drop(list);
                     if let Err(e) = app_handle_clone.emit("open-with-app", files_to_emit) {
                         log::error!("Failed to emit open-with-app event: {:?}", e);
@@ -187,7 +164,6 @@ async fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
-            log::info!("CompressO starting up on {}", std::env::consts::OS);
             app.manage(PendingFiles::new());
             app.manage(FrontendReady::new());
 
@@ -220,7 +196,6 @@ async fn main() {
                 };
 
                 if let Some(urls) = urls_to_process {
-                    log::info!("Processing {} early URLs after setup", urls.len());
                     if let Err(e) = handle_open_with_app(app.handle(), urls) {
                         log::error!("Failed to handle early open with app URLs: {:?}", e);
                     }
@@ -229,30 +204,38 @@ async fn main() {
 
             #[cfg(any(windows, target_os = "linux"))]
             {
-                log::info!("Checking command line args on {:?}", std::env::consts::OS);
                 let args: Vec<String> = std::env::args().collect();
-                log::info!("All args: {:?}", args);
 
                 let mut urls = Vec::new();
-                for maybe_file in std::env::args().skip(1) {
-                    log::info!("Processing arg: {}", maybe_file);
+                for maybe_file in args.iter().skip(1) {
                     if maybe_file.starts_with('-') {
                         continue;
                     }
-                    if let Ok(url) = Url::parse(&maybe_file) {
-                        if let Ok(_path) = url.to_file_path() {
-                            log::info!("  Parsed as URL: {}", url);
-                            urls.push(url);
+
+                    if cfg!(target_os = "windows") {
+                        let path = PathBuf::from(maybe_file);
+
+                        match Url::from_file_path(&path) {
+                            Ok(url) => {
+                                urls.push(url);
+                            }
+                            Err(_) => {
+                                log::error!("Failed to convert Windows path: {:?}", path);
+                            }
                         }
                     } else {
-                        let path = PathBuf::from(&maybe_file);
-                        if let Ok(url_str) = Url::from_file_path(&path) {
-                            log::info!("  Converted from path: {}", url_str);
-                            urls.push(url_str);
+                        if let Ok(url) = Url::parse(maybe_file) {
+                            if let Ok(_path) = url.to_file_path() {
+                                urls.push(url);
+                            }
+                        } else {
+                            let path = PathBuf::from(maybe_file);
+                            if let Ok(url) = Url::from_file_path(&path) {
+                                urls.push(url);
+                            }
                         }
                     }
                 }
-                log::info!("Found {} file URLs from command line", urls.len());
                 if let Err(e) = handle_open_with_app(app.handle(), urls) {
                     log::error!("Failed to handle open with app (platform args): {:?}", e);
                 }
@@ -285,12 +268,8 @@ async fn main() {
         .run(
             #[allow(unused_variables)]
             |app_handle, event| {
-                #[cfg(any(target_os = "macos", windows))]
+                #[cfg(any(target_os = "macos"))]
                 if let tauri::RunEvent::Opened { urls } = event {
-                    log::info!("RunEvent::Opened received with {} URLs on Windows/macOS", urls.len());
-                    for (i, url) in urls.iter().enumerate() {
-                        log::info!("  RunEvent URL[{}]: {}", i, url);
-                    }
                     if let Err(e) = handle_open_with_app(app_handle, urls) {
                         log::error!("Failed to handle open with app: {:?}", e);
                     }
