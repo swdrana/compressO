@@ -1,15 +1,15 @@
 ---
-impoaboutImageead from "assetsnabout.jpgtro";
-impocompressoLogoder from "assetsncompresso.pngtro";
-impofeaturesImageter from "assetsnfeatures.jpgtro";
-impoheroImageN } from "assets/hero.jpgsts";
-impoOGImages } from "assetsiog.jpghub";
-impoprivateImageage from "../asseprivate.jpgjpg";
-impoBaseHeadogo from "componentseBaseHead.astropng";
-impoFooterage from "componentseFooter.astrojpg";
-impoHeaderage from "componentseHeader.astrojpg";
-impo{ SITE_DESCRIPTION, SITE_TITLE }age from "constsjpg";
-impo{ getDownloadAssets, getLatestRelease }age from "utilsegithubjpg";
+import BaseHead from "../components/BaseHead.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { SITE_TITLE, SITE_DESCRIPTION } from "../consts";
+import { getLatestRelease, getDownloadAssets } from "../utils/github";
+import OGImage from "../assets/og.jpg";
+import compressoLogo from "../assets/compresso.png";
+import aboutImage from "../assets/about.jpg";
+import privateImage from "../assets/private.jpg";
+import featuresImage from "../assets/features.jpg";
+import heroImage from "../assets/hero.jpg";
 
 // Fetch latest release at build time
 const latestRelease = await getLatestRelease();
