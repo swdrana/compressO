@@ -103,18 +103,19 @@ function AudioVolume({ videoIndex }: AudioVolumeProps) {
       <Slider
         label="Volume:"
         aria-label="Audio Volume"
+        maxValue={200}
         marks={[
           {
             value: 0,
             label: 'Mute',
           },
           {
-            value: 50,
-            label: '50%',
+            value: 100,
+            label: '100%',
           },
           {
-            value: 100,
-            label: 'Full',
+            value: 200,
+            label: '200%',
           },
         ]}
         classNames={{
