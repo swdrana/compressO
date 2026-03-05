@@ -1,16 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --accent: #7f4cfe;
-  --accent-dark: #5d2fd1;
+  --accent: #f6d365;
+  --accent-dark: #fda085;
   --white: #fff;
   --black: #000;
   --gray: rgb(96, 115, 159);
   --gray-light: rgb(229, 233, 240);
   --gray-dark: rgb(34, 41, 57);
-  --gray-gradient: rgba(var(--gray-light), 50%), #fff;
   --box-shadow: 0 2px 6px rgba(var(--gray), 25%),
-    0 8px 24px rgba(var(--gray), 33%), 0 16px 32px rgba(var(--gray), 33%);
+  0 8px 24px rgba(var(--gray), 33%), 0 16px 32px rgba(var(--gray), 33%);
+  --gradient-gray: rgba(var(--gray-light), 50%), #fff;
+  --gradient-primary: linear-gradient(120deg, var(--accent) 0%, var(--accent-dark) 100%);
 }
 
 @font-face {
@@ -215,7 +216,7 @@ hr {
 
 
 .gradient-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-image: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -223,7 +224,6 @@ hr {
 
 .hero {
   min-height: 100vh;
-  max-width: 1920px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -260,7 +260,6 @@ hr {
 .hero-content {
   position: relative;
   z-index: 1;
-  max-width: 1500px;
 }
 
 .badge {
@@ -313,7 +312,7 @@ hr {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   color: #fff;
   border: none;
 }
@@ -339,7 +338,7 @@ hr {
 
 .hero-image {
   margin-top: 60px;
-  border-radius: 20px;
+  border-radius: 50px;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -378,11 +377,11 @@ hr {
 .section-tag {
   display: inline-block;
   padding: 6px 16px;
-  background: rgba(102, 126, 234, 0.15);
+  background: theme(--color-zinc-900);
   border-radius: 20px;
   font-size: 13px;
   font-weight: 500;
-  color: #667eea;
+  color: var(--accent);
   margin-bottom: 20px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -419,7 +418,7 @@ hr {
 
 .feature-card:hover {
   background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(102, 126, 234, 0.3);
+  border-color: rgba(203, 234, 102, 0.3);
   transform: translateY(-4px);
 }
 
@@ -427,8 +426,8 @@ hr {
   width: 60px;
   height: 60px;
   background: linear-gradient(135deg,
-      rgba(102, 126, 234, 0.2),
-      rgba(118, 75, 162, 0.2));
+      rgba(225, 234, 102, 0.2),
+      rgba(218, 104, 10, 0.2));
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -500,13 +499,14 @@ hr {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--gradient-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   font-weight: bold;
+  color: theme(--color-zinc-700);
 }
 
 .feature-list-vertical li {
@@ -544,18 +544,13 @@ hr {
   margin-top: 16px;
   padding: 4px 10px;
   background: transparent;
-  border: 1px solid rgba(102, 126, 234, 0.5);
+  border: 1px solid var(--accent);
   border-radius: 8px;
-  color: #667eea;
+  color: var(--accent);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-}
-
-.show-all-btn:hover {
-  background: rgba(102, 126, 234, 0.1);
-  border-color: #667eea;
 }
 
 .showcase-visual {
@@ -588,7 +583,7 @@ hr {
 .stat-number {
   font-size: 48px;
   font-weight: 800;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
