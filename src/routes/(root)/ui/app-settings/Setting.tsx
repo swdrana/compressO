@@ -16,7 +16,7 @@ import ThemeSwitcher from '@/components/ThemeSwitcher'
 import Title from '@/components/Title'
 import { toast } from '@/components/Toast'
 import Tooltip from '@/components/Tooltip'
-import { updateStore } from '@/stores/updateStore'
+import { installUpdateApp, updateStore } from '@/stores/updateStore'
 import { deleteCache as invokeDeleteCache } from '@/tauri/commands/fs'
 import About from './About'
 
@@ -204,7 +204,6 @@ function UpdateModal({ onClose }: UpdateModalProps) {
 
   const handleInstall = async () => {
     try {
-      const { installUpdateApp } = await import('@/stores/updateStore')
       await installUpdateApp()
       onClose()
     } catch {

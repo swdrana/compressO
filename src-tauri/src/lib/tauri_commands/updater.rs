@@ -54,9 +54,8 @@ pub async fn install_update(app_handle: tauri::AppHandle) -> Result<String, Stri
 
     let downloaded = AtomicUsize::new(0);
     let total_size = AtomicU64::new(0);
-    log::info!("Downloading new update");
     let _bytes = response
-        .download(
+        .download_and_install(
             &|chunk_length, content_length| {
                 let prev = downloaded.fetch_add(chunk_length, Ordering::SeqCst);
 
@@ -73,12 +72,10 @@ pub async fn install_update(app_handle: tauri::AppHandle) -> Result<String, Stri
                 }
             },
             &|| {
-                log::info!("Update download completed");
                 let _ = app_handle.emit("update-event", "100");
             },
         )
         .await
         .map_err(|e| format!("Failed to download update: {}", e))?;
-
-    Ok("Update download completed. The app will restart automatically.".to_string())
+    Ok("Update downloaded and installed successfully.".to_string())
 }

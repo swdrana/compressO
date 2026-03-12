@@ -92,36 +92,60 @@ function getCurrentUTCTime() {
 }
 
 /**
+ * Read signature file content
+ */
+function readSignature(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf-8')
+      return content.trim()
+    }
+    console.warn(`Warning: Signature file not found at ${filePath}`)
+    return null
+  } catch (error) {
+    console.error(`Error reading signature file:`, error)
+    return null
+  }
+}
+
+/**
  * Generate platform-specific URLs
  */
 function generatePlatformUrls(version) {
   const baseUrl = `https://github.com/${CONFIG.author}/${CONFIG.repo}/releases/download/${version}`
   const platforms = {}
 
+  // macOS - Apple Silicon (aarch64)
+  const aarch64SigPath = `./src-tauri/target/aarch64-apple-darwin/release/bundle/macos/${CONFIG.appName}.app.tar.gz.sig`
   platforms['darwin-aarch64'] = {
-    signature: `${baseUrl}/${CONFIG.appName}_${version}_aarch64.dmg.sig`,
-    url: `${baseUrl}/${CONFIG.appName}_${version}_aarch64.dmg`,
+    signature: readSignature(aarch64SigPath),
+    url: `${baseUrl}/${CONFIG.appName}_${version}_aarch64.app.tar.gz`,
   }
 
+  // macOS - Intel (x64)
+  const x64SigPath = `./src-tauri/target/x86_64-apple-darwin/release/bundle/macos/${CONFIG.appName}.app.tar.gz.sig`
   platforms['darwin-x86_64'] = {
-    signature: `${baseUrl}/${CONFIG.appName}_${version}_x64.dmg.sig`,
-    url: `${baseUrl}/${CONFIG.appName}_${version}_x64.dmg`,
+    signature: readSignature(x64SigPath),
+    url: `${baseUrl}/${CONFIG.appName}_${version}_x64.app.tar.gz`,
   }
 
-  platforms['windows-x86_64'] = {
-    signature: `${baseUrl}/${CONFIG.appName}_${version}_x64.exe.sig`,
-    url: `${baseUrl}/${CONFIG.appName}_${version}_x64.exe.nsis`,
-  }
+  // Windows (x64) - Skip for now
+  // platforms['windows-x86_64'] = {
+  //   signature: `${baseUrl}/${CONFIG.appName}_${version}_x64.exe.sig`,
+  //   url: `${baseUrl}/${CONFIG.appName}_${version}_x64.exe.nsis`,
+  // }
 
-  platforms['linux-amd64'] = {
-    signature: `${baseUrl}/${CONFIG.appName}_${version}_amd64.deb.sig`,
-    url: `${baseUrl}/${CONFIG.appName}_${version}_amd64.deb`,
-  }
+  // Linux - AMD64 (deb) - Skip for now
+  // platforms['linux-amd64'] = {
+  //   signature: `${baseUrl}/${CONFIG.appName}_${version}_amd64.deb.sig`,
+  //   url: `${baseUrl}/${CONFIG.appName}_${version}_amd64.deb`,
+  // }
 
-  platforms['linux-appimage'] = {
-    signature: `${baseUrl}/${CONFIG.appName}_${version}_amd64.AppImage.sig`,
-    url: `${baseUrl}/${CONFIG.appName}_${version}_amd64.AppImage`,
-  }
+  // Linux - AppImage (universal) - Skip for now
+  // platforms['linux-appimage'] = {
+  //   signature: `${baseUrl}/${CONFIG.appName}_${version}_amd64.AppImage.sig`,
+  //   url: `${baseUrl}/${CONFIG.appName}_${version}_amd64.AppImage`,
+  // }
 
   return platforms
 }

@@ -57,7 +57,7 @@ export async function installUpdateApp() {
   try {
     await installUpdate()
     toast.success(
-      'Update will be installed automatically. The app will restart.',
+      'Update installed successfully. Restart the app to use the new version.',
     )
   } catch (error) {
     // biome-ignore lint/suspicious/noConsole: <>
@@ -65,6 +65,7 @@ export async function installUpdateApp() {
     toast.error('Failed to install update. Please try again.')
   } finally {
     setTimeout(() => {
+      updateStore.isUpdateAvailable = false
       updateStore.isInstalling = false
     }, 2000)
   }

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "CompressO",
-  "version": "2.1.0",
+  "version": "2.1.2",
   "identifier": "com.compresso.app",
   "build": {
     "beforeBuildCommand": "pnpm vite:build",
@@ -14,7 +14,7 @@
     "active": true,
     "category": "Video",
     "copyright": "Code For Real",
-    "targets": ["deb", "appimage", "nsis", "dmg"],
+    "targets": ["deb", "appimage", "nsis", "dmg", "app"],
     "externalBin": ["./bin/compresso_ffmpeg", "./bin/compresso_ffprobe"],
     "fileAssociations": [
       {
@@ -68,7 +68,8 @@
         "depends": [],
         "desktopTemplate": "compressO.desktop.template"
       }
-    }
+    },
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "updater": {
@@ -77,7 +78,7 @@
         "https://github.com/codeforreal1/compressO/releases/latest/download/latest.json"
       ],
       "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhBMkNCQjYzRDg3Mjk3MzUKUldSU0RMRmZVRU5aRm5aR3E4cE9GWFZ5akVhN0xjQkVJZ1pMSmxoNmxpNlE2QjFyWlVnT2N2cHJXaHkK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZDRjIzRTAxQzc1Njc4RjgKUldUNGVGYkhBVDd5YkJNejh2aHlOeS9XekFOcUlxUXhIYlBLS1ZLdHJzVW4zRVE1QUhUUjZOd0QK"
     }
   },
   "app": {

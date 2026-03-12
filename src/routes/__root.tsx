@@ -3,10 +3,10 @@ import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { event } from '@tauri-apps/api'
 import { useEffect } from 'react'
 
-import { checkForUpdates, setupUpdateListeners } from '@/stores/updateStore'
-import { getPlatform } from '@/utils/fs'
-import Titlebar from '@/tauri/components/Titlebar'
 import { Toaster } from '@/components/Toast'
+import { checkForUpdates, setupUpdateListeners } from '@/stores/updateStore'
+import Titlebar from '@/tauri/components/Titlebar'
+import { getPlatform } from '@/utils/fs'
 import UIProvider from '../providers/UIProvider'
 
 export const Route = createRootRoute({
@@ -21,7 +21,6 @@ function RootComponent() {
   useEffect(() => {
     event.emit('frontend-ready')
     setupUpdateListeners()
-    // Check for updates in the background after app loads
     checkForUpdates()
   }, [])
 
