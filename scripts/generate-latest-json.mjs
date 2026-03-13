@@ -116,36 +116,47 @@ function generatePlatformUrls(version) {
   const platforms = {}
 
   // macOS - Apple Silicon (aarch64)
-  const aarch64SigPath = `./src-tauri/target/aarch64-apple-darwin/release/bundle/macos/${CONFIG.appName}.app.tar.gz.sig`
   platforms['darwin-aarch64'] = {
-    signature: readSignature(aarch64SigPath),
+    signature: readSignature(
+      `./src-tauri/target/aarch64-apple-darwin/release/bundle/macos/${CONFIG.appName}.app.tar.gz.sig`,
+    ),
     url: `${baseUrl}/${CONFIG.appName}_${version}_aarch64.app.tar.gz`,
   }
 
   // macOS - Intel (x64)
-  const x64SigPath = `./src-tauri/target/x86_64-apple-darwin/release/bundle/macos/${CONFIG.appName}.app.tar.gz.sig`
   platforms['darwin-x86_64'] = {
-    signature: readSignature(x64SigPath),
+    signature: readSignature(
+      `./src-tauri/target/x86_64-apple-darwin/release/bundle/macos/${CONFIG.appName}.app.tar.gz.sig`,
+    ),
     url: `${baseUrl}/${CONFIG.appName}_${version}_x64.app.tar.gz`,
   }
 
-  // Windows (x64) - Skip for now
-  // platforms['windows-x86_64'] = {
-  //   signature: `${baseUrl}/${CONFIG.appName}_${version}_x64.exe.sig`,
-  //   url: `${baseUrl}/${CONFIG.appName}_${version}_x64.exe.nsis`,
-  // }
+  // Windows (x64)
+  platforms['windows-x86_64'] = {
+    signature: readSignature(
+      `./src-tauri/target/release/bundle/nsis/${CONFIG.appName}_${version}_x64-setup.exe.sig`,
+    ),
+    url: `${baseUrl}/${CONFIG.appName}_${version}_x64.exe`,
+  }
 
-  // Linux - AMD64 (deb) - Skip for now
-  // platforms['linux-amd64'] = {
-  //   signature: `${baseUrl}/${CONFIG.appName}_${version}_amd64.deb.sig`,
-  //   url: `${baseUrl}/${CONFIG.appName}_${version}_amd64.deb`,
-  // }
+  // Linux - AppImage (universal)
+  const appImageItem = {
+    signature: readSignature(
+      `./src-tauri/target/release/bundle/appimage/${CONFIG.appName}_${version}_amd64.AppImage.sig`,
+    ),
+    url: `${baseUrl}/${CONFIG.appName}_${version}_amd64.AppImage`,
+  }
+  platforms['linux-x86_64'] = appImageItem
 
-  // Linux - AppImage (universal) - Skip for now
-  // platforms['linux-appimage'] = {
-  //   signature: `${baseUrl}/${CONFIG.appName}_${version}_amd64.AppImage.sig`,
-  //   url: `${baseUrl}/${CONFIG.appName}_${version}_amd64.AppImage`,
-  // }
+  platforms['linux-x86_64-appimage'] = appImageItem
+
+  // Linux - x86_64 (deb)
+  platforms['linux-x86_64-deb'] = {
+    signature: readSignature(
+      `./src-tauri/target/release/bundle/deb/${CONFIG.appName}_${version}_amd64.deb.sig`,
+    ),
+    url: `${baseUrl}/${CONFIG.appName}_${version}_amd64.deb`,
+  }
 
   return platforms
 }
