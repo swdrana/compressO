@@ -172,7 +172,10 @@ function SaveMedia() {
       {!isCompressing &&
       mediaFile?.isProcessCompleted &&
       mediaFile?.compressedFile?.isSuccessful ? (
-        <Tooltip content="Copy to clipboard" aria-label="Copy to clipboard">
+        <Tooltip
+          content="Copy output to clipboard"
+          aria-label="Copy output to clipboard"
+        >
           <Button
             isIconOnly
             className="ml-2 text-green-500"

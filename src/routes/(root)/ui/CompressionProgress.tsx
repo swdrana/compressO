@@ -1,7 +1,7 @@
 import { core, event } from '@tauri-apps/api'
 import { invoke } from '@tauri-apps/api/core'
 import clamp from 'lodash/clamp'
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { snapshot, useSnapshot } from 'valtio'
 
 import {
@@ -56,7 +56,6 @@ function CompressionProgress() {
           await event.listen<BatchMediaCompressionProgress>(
             CustomEvents.BatchMediaCompressionProgress,
             (evt) => {
-              console.log('BATCH PROGRESS', evt.payload)
               const payload = evt?.payload
               if (batchId === payload?.batchId) {
                 const media = snapshot(appProxy).state.media
@@ -135,7 +134,6 @@ function CompressionProgress() {
           await event.listen<BatchMediaIndividualCompressionResult>(
             CustomEvents.BatchMediaIndividualCompressionCompletion,
             (evt) => {
-              console.log('INDIVIDUAL PROGRESS', evt.payload)
               const payload = evt?.payload
               if (batchId === payload?.batchId && payload?.result) {
                 const media = snapshot(appProxy).state.media
@@ -196,4 +194,4 @@ function CompressionProgress() {
   return null
 }
 
-export default CompressionProgress
+export default memo(CompressionProgress)

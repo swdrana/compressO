@@ -1,28 +1,36 @@
-import { ScrollShadow } from '@heroui/react'
-import { AnimatePresence } from 'framer-motion'
+import { ScrollShadow, Tab } from '@heroui/react'
+import { AnimatePresence, motion } from 'framer-motion'
 import React from 'react'
 import { useSnapshot } from 'valtio'
 
 import Layout from '@/components/Layout'
+import Tabs from '@/components/Tabs'
 import Title from '@/components/Title'
+import { zoomInTransition } from '@/utils/animation'
 import { cn } from '@/utils/tailwind'
 import { appProxy } from '../-state'
 import CompressionActions from './CompressionActions'
 import CompressionProgress from './CompressionProgress'
 import CustomizeMediaOnBatchActions from './CustomizeMediaOnBatchActions'
 import OutputSettings from './output-settings/-index'
-import PreviewBatchVideos from './PreviewBatchMedia'
+import PreviewBatchMedia from './PreviewBatchMedia'
 import PreviewSingleVideo from './PreviewSingleMedia'
 import StartCompression from './StartCompression'
 import styles from './styles.module.css'
 
 function MediaConfig() {
   const {
-    state: { media, isCompressing, selectedMediaIndexForCustomization },
+    state: {
+      activeTab,
+      media,
+      isCompressing,
+      selectedMediaIndexForCustomization,
+    },
   } = useSnapshot(appProxy)
 
   return (
     <Layout
+      containerProps={{ className: 'relative' }}
       childrenProps={{
         className: 'h-full',
       }}
@@ -31,13 +39,37 @@ function MediaConfig() {
       <div className={cn(['h-full p-6', styles.videoConfigContainer])}>
         <section
           className={cn(
-            'relative w-full h-full px-4 py-6 rounded-xl border-2 border-zinc-200 dark:border-zinc-800 overflow-hidden',
+            'relative w-full h-full px-4 py-6 rounded-xl border-2 border-zinc-200 dark:border-zinc-800',
           )}
         >
+          {selectedMediaIndexForCustomization === -1 ? (
+            <motion.div
+              className="flex justify-center absolute left-1/2 top-[-16px]"
+              {...zoomInTransition}
+            >
+              <Tabs
+                aria-label="Media Filter"
+                size="sm"
+                selectedKey={activeTab}
+                onSelectionChange={(t) => {
+                  appProxy.state.activeTab = t as 'all' | 'videos' | 'images'
+                }}
+                className="mb-4"
+                classNames={{
+                  tabContent: 'text-[11px]',
+                  tab: 'h-5',
+                }}
+              >
+                <Tab key="all" value="all" title="All" />
+                <Tab key="videos" value="videos" title="Videos" />
+                <Tab key="images" value="images" title="Images" />
+              </Tabs>
+            </motion.div>
+          ) : null}
           <AnimatePresence>
             {media.length > 1 ? (
               <>
-                <PreviewBatchVideos />
+                <PreviewBatchMedia />
                 {selectedMediaIndexForCustomization > -1 ? (
                   <CustomizeMediaOnBatchActions />
                 ) : null}

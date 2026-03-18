@@ -1,4 +1,3 @@
-import { Tab } from '@heroui/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { memo, useCallback, useMemo } from 'react'
 import { useSnapshot } from 'valtio'
@@ -10,7 +9,7 @@ import Icon from '@/components/Icon'
 import Image from '@/components/Image'
 import Progress, { CircularProgress } from '@/components/Progress'
 import ScrollShadow from '@/components/ScrollShadow'
-import Tabs from '@/components/Tabs'
+import Spinner from '@/components/Spinner'
 import { toast } from '@/components/Toast'
 import Tooltip from '@/components/Tooltip'
 import { copyFileToClipboard, showItemInFileManager } from '@/tauri/commands/fs'
@@ -251,25 +250,6 @@ function PreviewBatchMedia() {
 
   return (
     <>
-      <div className="flex justify-center mt-[-10px]">
-        <Tabs
-          aria-label="Media Filter"
-          size="sm"
-          selectedKey={activeTab}
-          onSelectionChange={(t) => {
-            appProxy.state.activeTab = t as 'all' | 'videos' | 'images'
-          }}
-          className="mb-4"
-          classNames={{
-            tabContent: 'text-[11px]',
-            tab: 'h-6',
-          }}
-        >
-          <Tab key="all" value="all" title="All" />
-          <Tab key="videos" value="videos" title="Videos" />
-          <Tab key="images" value="images" title="Images" />
-        </Tabs>
-      </div>
       <ScrollShadow
         className="h-[75vh] hlg:h-[80vh] overflow-hidden overflow-y-auto"
         hideScrollBar
@@ -347,8 +327,8 @@ function PreviewBatchMedia() {
                         mediaFile?.isProcessCompleted &&
                         mediaFile?.compressedFile?.isSuccessful ? (
                           <Tooltip
-                            content="Copy to clipboard"
-                            aria-label="Copy to clipboard"
+                            content="Copy output to clipboard"
+                            aria-label="Copy output to clipboard"
                           >
                             <Button
                               size="sm"
@@ -428,23 +408,25 @@ function PreviewBatchMedia() {
                       ) : null}
                       {isCompressing && currentMediaIndex === originalIndex ? (
                         <>
-                          <CircularProgress
-                            size="lg"
-                            showValueLabel
-                            className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2"
-                            value={
-                              mediaFile?.type === 'video'
-                                ? mediaFile.compressionProgress
-                                : undefined
-                            }
-                            strokeWidth={3}
-                            classNames={{
-                              svg: 'w-20 h-20 drop-shadow-md',
-                              track: 'dark:stroke-white/50',
-                              value: 'font-bold text-sm text-white1',
-                            }}
-                            aria-label="Processing"
-                          />
+                          {mediaFile?.type === 'video' ? (
+                            <CircularProgress
+                              showValueLabel
+                              className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2"
+                              value={mediaFile.compressionProgress}
+                              strokeWidth={2.5}
+                              classNames={{
+                                svg: 'w-14 h-14 drop-shadow-md',
+                                track: 'dark:stroke-white/50',
+                                value: 'text-[12px] text-white1',
+                              }}
+                              aria-label="Processing"
+                            />
+                          ) : (
+                            <Spinner
+                              size="lg"
+                              className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2"
+                            />
+                          )}
                           <div className="absolute inset-0 bg-black/70 z-10 rounded-lg"></div>
                         </>
                       ) : null}
@@ -604,7 +586,7 @@ function PreviewBatchMedia() {
                   showValueLabel
                   size="lg"
                   value={getDisplayStats.totalProgress ?? 0}
-                  strokeWidth={4}
+                  strokeWidth={3}
                 />
               </div>
             </div>
