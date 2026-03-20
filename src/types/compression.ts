@@ -9,7 +9,6 @@ export const extensions = {
     jpeg: 'jpeg',
     webp: 'webp',
     gif: 'gif',
-    heic: 'heic',
     svg: 'svg',
   },
 } as const

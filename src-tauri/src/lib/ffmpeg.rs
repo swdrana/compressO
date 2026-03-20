@@ -23,7 +23,6 @@ use tauri_plugin_shell::ShellExt;
 
 pub struct FFMPEG {
     app: AppHandle,
-    ffmpeg: Command,
     assets_dir: PathBuf,
 }
 
@@ -31,39 +30,34 @@ const EXTENSIONS: [&str; 5] = ["mp4", "mov", "webm", "avi", "mkv"];
 
 impl FFMPEG {
     pub fn new(app: &tauri::AppHandle) -> Result<Self, String> {
-        match app.shell().sidecar("compresso_ffmpeg") {
-            Ok(command) => {
-                let app_data_dir = match app.path().app_data_dir() {
-                    Ok(path_buf) => path_buf,
-                    Err(_) => {
-                        return Err(String::from(
-                            "Application app directory is not setup correctly.",
-                        ));
-                    }
-                };
-                let assets_dir: PathBuf = [PathBuf::from(&app_data_dir), PathBuf::from("assets")]
-                    .iter()
-                    .collect();
-
-                Ok(Self {
-                    app: app.to_owned(),
-                    ffmpeg: Command::from(command),
-                    assets_dir,
-                })
+        let app_data_dir = match app.path().app_data_dir() {
+            Ok(path_buf) => path_buf,
+            Err(_) => {
+                return Err(String::from(
+                    "Application app directory is not setup correctly.",
+                ));
             }
-            Err(err) => Err(format!("[ffmpeg-sidecar]: {:?}", err.to_string())),
-        }
+        };
+        let assets_dir: PathBuf = [PathBuf::from(&app_data_dir), PathBuf::from("assets")]
+            .iter()
+            .collect();
+
+        Ok(Self {
+            app: app.to_owned(),
+            assets_dir,
+        })
     }
 
     pub fn get_asset_dir(&self) -> String {
         self.assets_dir.display().to_string()
     }
 
-    pub fn get_command(&self) -> Result<Command, String> {
-        match self.app.shell().sidecar("compresso_ffmpeg") {
-            Ok(command) => Ok(Command::from(command)),
-            Err(err) => Err(format!("[ffmpeg-sidecar]: {:?}", err.to_string())),
-        }
+    pub fn get_ffmpeg_command(&self) -> Result<Command, String> {
+        self.app
+            .shell()
+            .sidecar("compresso_ffmpeg")
+            .map(Command::from)
+            .map_err(|e| format!("Failed to create ffmpeg command: {}", e))
     }
 
     /// Compresses a video from a path
@@ -638,8 +632,9 @@ impl FFMPEG {
 
         log::info!("[ffmpeg] final command{:?}", cmd_args);
 
-        let command = self
-            .ffmpeg
+        let mut ffmpeg_cmd: Command = self.get_ffmpeg_command()?;
+
+        let command = ffmpeg_cmd
             .args(cmd_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -976,7 +971,9 @@ impl FFMPEG {
 
         let timestamp_value = timestamp.unwrap_or("00:00:01.00");
 
-        let command = self.ffmpeg.args([
+        let mut ffmpeg_cmd: Command = self.get_ffmpeg_command()?;
+
+        let command = ffmpeg_cmd.args([
             "-ss",
             timestamp_value,
             "-i",
@@ -1117,8 +1114,9 @@ impl FFMPEG {
             ));
         }
 
-        let command = self
-            .ffmpeg
+        let mut ffmpeg_cmd: Command = self.get_ffmpeg_command()?;
+
+        let command = ffmpeg_cmd
             .args(["-i", video_path])
             .args(["-map", &format!("0:s:{}", subtitle_specific_index)])
             .args(["-c:s", ffmpeg_codec])
@@ -1152,151 +1150,98 @@ impl FFMPEG {
         }
     }
 
-    /// Converts an image from one format to another using ffmpeg
-    pub async fn convert_image(
+    pub fn convert_video_to_gif(
         &mut self,
-        input_path: &Path,
-        output_path: &Path,
-        output_format: &str,
+        video_path: &str,
         quality: u8,
-        strip_metadata: bool,
+        video_id: &str,
+        dimensions: Option<(u32, u32)>,
+        fps: Option<&str>,
     ) -> Result<PathBuf, String> {
-        if !input_path.exists() {
-            return Err(String::from("Input image file does not exist."));
-        }
+        // TODO: Implement CANCEL event and progress support.
+        let output_filename = format!("{}.gif", video_id);
+        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
+            .iter()
+            .collect();
 
-        // Build ffmpeg command for image conversion
-        let mut cmd_args: Vec<String> = Vec::new();
+        let output_path_str = output_path
+            .to_str()
+            .ok_or("Invalid output path")?
+            .to_string();
 
-        cmd_args.push("-i".to_string());
-        cmd_args.push(input_path.to_str().unwrap().to_string());
+        let ffmpeg_args = vec!["-i", video_path, "-f", "yuv4mpegpipe", "-"];
 
-        // Handle different output formats
-        let output_format_lower = output_format.to_lowercase();
-        match output_format_lower.as_str() {
-            "jpg" | "jpeg" => {
-                // JPEG compression settings
-                let jpeg_quality = quality.max(1).min(100);
-                let qscale = 31 - ((jpeg_quality * 31) / 100); // 1-31 scale (lower is better)
-                cmd_args.push("-q:v".to_string());
-                cmd_args.push(qscale.to_string());
-                cmd_args.push("-vf".to_string());
-                cmd_args.push("scale=iw:ih:flags=lanczos".to_string());
-            }
-            "png" => {
-                // PNG compression settings
-                // Use compression level 0-9 (higher is better compression)
-                let compression_level = (quality / 10).clamp(0, 9);
-                cmd_args.push("-compression_level".to_string());
-                cmd_args.push(compression_level.to_string());
-                cmd_args.push("-pred".to_string());
-                cmd_args.push("mixed".to_string());
-            }
-            "webp" => {
-                // WebP quality (0-100)
-                let webp_quality = quality.max(0).min(100);
-                cmd_args.push("-q:v".to_string());
-                cmd_args.push(webp_quality.to_string());
-                cmd_args.push("-lossless".to_string());
-                cmd_args.push("0".to_string());
-            }
-            "gif" => {
-                // GIF settings
-                let _gif_quality = quality.max(1).min(30); // 1-30 scale (lower is better)
-                cmd_args.push("-vf".to_string());
-                cmd_args.push(
-                    "scale=iw:ih:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse"
-                        .to_string(),
-                );
-            }
-            _ => {
-                // Default settings for other formats
-                cmd_args.push("-q:v".to_string());
-                cmd_args.push("2".to_string());
-            }
-        }
+        let mut ffmpeg_cmd: Command = self.get_ffmpeg_command()?;
 
-        // Strip metadata if requested
-        if strip_metadata {
-            cmd_args.push("-map_metadata".to_string());
-            cmd_args.push("-1".to_string());
-        }
-
-        cmd_args.push("-y".to_string());
-        cmd_args.push(output_path.to_str().unwrap().to_string());
-
-        log::info!("[ffmpeg-image] conversion command: {:?}", cmd_args);
-
-        let command = self
-            .ffmpeg
-            .args(&cmd_args)
+        let mut ffmpeg_child = ffmpeg_cmd
+            .args(&ffmpeg_args)
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
 
-        match SharedChild::spawn(command) {
-            Ok(child) => {
-                let cp = Arc::new(child);
-                let cp_clone1 = cp.clone();
-                let cp_clone2 = cp.clone();
+        let ffmpeg_stdout = ffmpeg_child
+            .stdout
+            .take()
+            .ok_or("Failed to get ffmpeg stdout")?;
 
-                let window = match self.app.get_webview_window("main") {
-                    Some(window) => window,
-                    None => return Err(String::from("Could not attach to main window")),
-                };
+        let gifski_quality = quality.clamp(1, 100);
+        let gifski_quality_str = gifski_quality.to_string();
+        let mut gifski_args: Vec<String> = vec!["-Q".to_string(), gifski_quality_str.clone()];
 
-                // Handle window destroy event
-                let destroy_event_id =
-                    window.listen(TauriEvents::Destroyed.get_str("key").unwrap(), move |_| {
-                        log::info!("[tauri] window destroyed");
-                        let _ = cp.kill();
-                    });
+        if let Some(fps_val) = fps {
+            gifski_args.push("-r".to_string());
+            gifski_args.push(fps_val.to_string());
+        }
 
-                // Handle cancellation
-                let cancel_event_id = window.listen(
-                    CustomEvents::CancelInProgressCompression.as_ref(),
-                    move |evt| {
-                        let payload_str = evt.payload();
-                        if let Ok(_payload) =
-                            serde_json::from_str::<CancelInProgressCompressionPayload>(payload_str)
-                        {
-                            let _ = cp_clone2.kill();
-                        }
-                    },
-                );
+        if let Some((width, height)) = dimensions {
+            gifski_args.push("-W".to_string());
+            gifski_args.push(width.to_string());
+            gifski_args.push("-H".to_string());
+            gifski_args.push(height.to_string());
+        }
 
-                // Wait for process completion
-                let handle = tokio::spawn(async move {
-                    match cp_clone1.wait() {
-                        Ok(status) if status.success() => Ok(()),
-                        Ok(_) => Err(String::from("FFmpeg conversion failed")),
-                        Err(e) => Err(format!("FFmpeg error: {}", e)),
-                    }
-                });
+        gifski_args.push("-o".to_string());
+        gifski_args.push(output_path_str.clone());
+        gifski_args.push("-".to_string());
 
-                match handle.await {
-                    Ok(result) => {
-                        // Cleanup listeners
-                        window.unlisten(destroy_event_id);
-                        window.unlisten(cancel_event_id);
+        let gifski_args_refs: Vec<&str> = gifski_args.iter().map(|s| s.as_str()).collect();
 
-                        result?;
+        log::info!(
+            "[image] video to gif final command: {:?} | {:?}",
+            ffmpeg_args,
+            gifski_args_refs
+        );
 
-                        // Verify output file exists and has content
-                        if !output_path.exists() {
-                            return Err(String::from("Output file was not created"));
-                        }
+        let mut gifski_cmd = match self.app.shell().sidecar("compresso_gifski") {
+            Ok(command) => Command::from(command),
+            Err(err) => return Err(format!("[gifski-sidecar]: {:?}", err.to_string())),
+        };
 
-                        let output_metadata = get_file_metadata(&output_path.to_string_lossy())?;
-                        if output_metadata.size == 0 {
-                            return Err(String::from("Output file is empty"));
-                        }
+        let mut gifski_child = gifski_cmd
+            .args(&gifski_args_refs)
+            .stdin(ffmpeg_stdout)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to run gifski: {}", e))?;
 
-                        Ok(output_path.to_path_buf())
-                    }
-                    Err(e) => Err(format!("Conversion task failed: {}", e)),
+        let ffmpeg_result = ffmpeg_child.wait();
+        let gifski_result = gifski_child.wait();
+
+        match (ffmpeg_result, gifski_result) {
+            (Ok(ffmpeg_status), Ok(gifski_status)) => {
+                if ffmpeg_status.success() && gifski_status.success() {
+                    Ok(output_path)
+                } else {
+                    Err(format!(
+                        "Video to GIF conversion failed - ffmpeg: {:?}, gifski: {:?}",
+                        ffmpeg_status, gifski_status
+                    ))
                 }
             }
-            Err(e) => Err(format!("Failed to spawn FFmpeg: {}", e)),
+            (Err(ffmpeg_err), _) => Err(format!("ffmpeg error: {}", ffmpeg_err)),
+            (_, Err(gifski_err)) => Err(format!("gifski error: {}", gifski_err)),
         }
     }
 

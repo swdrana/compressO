@@ -1,7 +1,7 @@
 use crate::domain::{
-    BatchImageCompressionProgress, CustomEvents, ImageBatchCompressionResult,
-    ImageBatchIndividualCompressionResult, ImageCompressionConfig, ImageCompressionProgress,
-    ImageCompressionResult,
+    BatchImageCompressionProgress, CancelInProgressCompressionPayload, CustomEvents,
+    ImageBatchCompressionResult, ImageBatchIndividualCompressionResult, ImageCompressionConfig,
+    ImageCompressionProgress, ImageCompressionResult, TauriEvents,
 };
 use crate::ffmpeg::FFMPEG;
 use crate::fs::get_file_metadata;
@@ -18,10 +18,12 @@ use shared_child::SharedChild;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 use std::{
     process::{Command, Stdio},
     sync::Arc,
 };
+use strum::EnumProperty;
 use tauri::{AppHandle, Emitter, Listener, Manager};
 use tauri_plugin_shell::ShellExt;
 
@@ -31,36 +33,15 @@ pub enum ImageContainer {
     Jpeg,
 }
 
-pub const EXTENSIONS: [&str; 7] = ["png", "jpg", "jpeg", "webp", "gif", "heic", "svg"];
+pub const EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "webp", "gif", "svg"];
 
 pub struct ImageCompressor {
     app: AppHandle,
-    pngquant: Command,
-    jpegoptim: Command,
-    gifski: Command,
     assets_dir: PathBuf,
-    ffmpeg: FFMPEG,
 }
 
 impl ImageCompressor {
     pub fn new(app: &tauri::AppHandle) -> Result<Self, String> {
-        let ffmpeg = FFMPEG::new(app)?;
-
-        let pngquant = match app.shell().sidecar("compresso_pngquant") {
-            Ok(command) => Command::from(command),
-            Err(err) => return Err(format!("[pngquant-sidecar]: {:?}", err.to_string())),
-        };
-
-        let jpegoptim = match app.shell().sidecar("compresso_jpegoptim") {
-            Ok(command) => Command::from(command),
-            Err(err) => return Err(format!("[jpegoptim-sidecar]: {:?}", err.to_string())),
-        };
-
-        let gifski = match app.shell().sidecar("compresso_gifski") {
-            Ok(command) => Command::from(command),
-            Err(err) => return Err(format!("[gifski-sidecar]: {:?}", err.to_string())),
-        };
-
         let app_data_dir = match app.path().app_data_dir() {
             Ok(path_buf) => path_buf,
             Err(_) => {
@@ -75,11 +56,7 @@ impl ImageCompressor {
 
         Ok(Self {
             app: app.to_owned(),
-            pngquant,
-            jpegoptim,
-            gifski,
             assets_dir,
-            ffmpeg,
         })
     }
 
@@ -87,25 +64,49 @@ impl ImageCompressor {
         self.assets_dir.display().to_string()
     }
 
+    pub fn get_pngquant_command(&self) -> Result<Command, String> {
+        self.app
+            .shell()
+            .sidecar("compresso_pngquant")
+            .map(Command::from)
+            .map_err(|e| format!("Failed to create pngquant command: {}", e))
+    }
+
+    pub fn get_jpegoptim_command(&self) -> Result<Command, String> {
+        self.app
+            .shell()
+            .sidecar("compresso_jpegoptim")
+            .map(Command::from)
+            .map_err(|e| format!("Failed to create jpegoptim command: {}", e))
+    }
+
+    pub fn get_gifski_command(&self) -> Result<Command, String> {
+        self.app
+            .shell()
+            .sidecar("compresso_gifski")
+            .map(Command::from)
+            .map_err(|e| format!("Failed to create gifski command: {}", e))
+    }
+
     pub async fn compress_image(
         &mut self,
-        image_path: &str,
+        input_path: &str,
         convert_to_extension: Option<&str>,
+        is_lossless: Option<bool>,
         quality: u8,
         image_id: &str,
         _batch_id: Option<&str>,
         strip_metadata: Option<bool>,
-        is_lossless: Option<bool>,
     ) -> Result<ImageCompressionResult, String> {
-        let original_path = Path::new(image_path);
+        let original_path = Path::new(input_path);
         if !original_path.exists() {
             return Err(String::from("Image file does not exist."));
         }
 
-        let original_metadata = get_file_metadata(image_path)?;
+        let original_metadata = get_file_metadata(input_path)?;
 
-        let extension = original_metadata.extension.to_lowercase();
-        let output_extension = convert_to_extension.unwrap_or(&extension);
+        let original_extension = original_metadata.extension.to_lowercase();
+        let output_extension = convert_to_extension.unwrap_or(&original_extension);
 
         let supported = EXTENSIONS.iter().any(|&ext| ext == output_extension);
         if !supported {
@@ -120,110 +121,174 @@ impl ImageCompressor {
             .iter()
             .collect();
 
-        let temp_output_path = match extension.as_str() {
+        let need_conversion =
+            convert_to_extension.is_some() && convert_to_extension.unwrap() != &original_extension;
+
+        let intermediate_path: Option<PathBuf> = if need_conversion {
+            let temp_filename = format!("{}_temp.{}", image_id, original_extension);
+            Some(
+                [self.assets_dir.clone(), PathBuf::from(&temp_filename)]
+                    .iter()
+                    .collect(),
+            )
+        } else {
+            None
+        };
+
+        let compression_output_path = intermediate_path.as_ref().unwrap_or(&output_path);
+
+        match original_extension.as_str() {
             "png" => {
                 self.compress_png(
-                    image_path,
-                    quality,
-                    image_id,
+                    input_path,
+                    compression_output_path.to_str().unwrap(),
                     is_lossless.unwrap_or(true),
+                    quality,
                     strip_metadata.unwrap_or(true),
                 )
                 .await?
             }
             "jpg" | "jpeg" => {
                 self.compress_jpeg(
-                    image_path,
-                    quality,
-                    image_id,
+                    input_path,
+                    compression_output_path.to_str().unwrap(),
                     is_lossless.unwrap_or(true),
+                    quality,
                     strip_metadata.unwrap_or(true),
                 )
                 .await?
             }
             "webp" => {
                 self.compress_webp(
-                    image_path,
-                    quality,
-                    image_id,
+                    input_path,
+                    compression_output_path.to_str().unwrap(),
                     is_lossless.unwrap_or(true),
+                    quality,
                     strip_metadata.unwrap_or(true),
                 )
                 .await?
             }
             "gif" => {
                 self.compress_gif(
-                    image_path,
-                    quality,
-                    image_id,
+                    input_path,
+                    compression_output_path.to_str().unwrap(),
                     is_lossless.unwrap_or(true),
+                    quality,
                     strip_metadata.unwrap_or(true),
                 )
                 .await?
             }
             "svg" => {
                 self.compress_svg(
-                    image_path,
-                    quality,
-                    image_id,
+                    input_path,
+                    compression_output_path.to_str().unwrap(),
                     is_lossless.unwrap_or(true),
+                    quality,
                     strip_metadata.unwrap_or(true),
                 )
                 .await?
             }
-            "heic" => output_path.clone(),
             _ => {
                 return Err(format!(
                     "Unsupported source format: {}. Original file will be copied.",
-                    extension
+                    original_extension
                 ))
             }
         };
 
-        let temp_path_clone = temp_output_path.clone();
-        let final_output_path =
-            if convert_to_extension.is_some() && convert_to_extension.unwrap() != &extension {
-                self.ffmpeg
-                    .convert_image(
-                        &temp_output_path,
-                        &output_path,
-                        output_extension,
-                        quality,
-                        strip_metadata.unwrap_or(true),
-                    )
-                    .await?
-            } else {
-                temp_output_path
-            };
+        tokio::time::sleep(Duration::from_secs(3)).await;
 
-        if temp_path_clone != final_output_path && temp_path_clone.exists() {
-            std::fs::remove_file(&temp_path_clone).ok();
+        if need_conversion {
+            let convert_to_ext = convert_to_extension.unwrap();
+            match original_extension.as_str() {
+                "png" | "jpg" | "jpeg" | "webp" => {
+                    if convert_to_ext.eq("svg") {
+                        let svg_result = self.convert_raster_img_to_svg(
+                            compression_output_path.to_str().unwrap(),
+                            output_path.to_str().unwrap(),
+                            quality,
+                        );
+
+                        // If above conversion fails, retry with png
+                        if svg_result.is_err() && original_extension != "png" {
+                            log::warn!("[image] Direct SVG conversion failed, converting to PNG and retrying");
+
+                            let temp_png_path = format!(
+                                "{}_temp_png.png",
+                                output_path.to_str().unwrap().trim_end_matches(".svg")
+                            );
+
+                            match self
+                                .convert_image_via_ffmpeg(
+                                    compression_output_path.to_str().unwrap(),
+                                    &temp_png_path,
+                                    "png",
+                                    100, // full quality
+                                    true,
+                                )
+                                .await
+                            {
+                                Ok(_) => {
+                                    let retry_result = self.convert_raster_img_to_svg(
+                                        &temp_png_path,
+                                        output_path.to_str().unwrap(),
+                                        quality,
+                                    );
+
+                                    // Clean up temp png file
+                                    let _ = fs::remove_file(&temp_png_path);
+
+                                    retry_result?;
+                                }
+                                Err(e) => {
+                                    log::error!("[image] PNG conversion for retry failed: {}", e);
+                                    return Err(format!("SVG conversion failed: {}", e));
+                                }
+                            }
+                        } else {
+                            svg_result?;
+                        }
+                    } else {
+                        self.convert_image_via_ffmpeg(
+                            compression_output_path.to_str().unwrap(),
+                            output_path.to_str().unwrap(),
+                            output_extension,
+                            quality,
+                            strip_metadata.unwrap_or(true),
+                        )
+                        .await?;
+                    }
+                }
+                "svg" => {
+                    self.convert_svg_to_png(compression_output_path.to_str().unwrap(), image_id)?
+                }
+                _ => return Err("Unsupported convert_to_extension".to_string()),
+            }
+
+            // Clean up intermediate temp file
+            if let Some(intermediate) = intermediate_path {
+                let _ = fs::remove_file(&intermediate);
+            }
         }
 
-        let compressed_metadata =
-            get_file_metadata(&final_output_path.to_string_lossy().to_string())?;
+        let compressed_metadata = get_file_metadata(&output_path.to_string_lossy().to_string())?;
 
         Ok(ImageCompressionResult {
             image_id: image_id.to_string(),
             file_name: output_filename,
-            file_path: final_output_path.display().to_string(),
+            file_path: output_path.display().to_string(),
             file_metadata: Some(compressed_metadata),
         })
     }
 
     async fn compress_png(
         &mut self,
-        image_path: &str,
-        quality: u8,
-        image_id: &str,
+        input_path: &str,
+        output_path: &str,
         is_lossless: bool,
+        quality: u8,
         strip_metadata: bool,
-    ) -> Result<PathBuf, String> {
-        let output_filename = format!("{}.png", image_id);
-        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
-            .iter()
-            .collect();
-
+    ) -> Result<(), String> {
         if is_lossless {
             let mut options = Options::default();
 
@@ -237,9 +302,9 @@ impl ImageCompressor {
             };
 
             optimize(
-                &InFile::Path(PathBuf::from(image_path)),
+                &InFile::Path(PathBuf::from(input_path)),
                 &OutFile::Path {
-                    path: Some(output_path.clone()),
+                    path: Some(PathBuf::from(output_path)),
                     preserve_attrs: !strip_metadata,
                 },
                 &options,
@@ -247,23 +312,17 @@ impl ImageCompressor {
             .map_err(|e| format!("PNG optimization failed: {:?}", e))?;
 
             if !strip_metadata {
-                let _ = self.copy_image_metadata(
-                    ImageContainer::Png,
-                    image_path,
-                    output_path.to_str().unwrap(),
-                );
+                let _ = self.copy_image_metadata(ImageContainer::Png, input_path, output_path);
             }
 
-            Ok(output_path)
+            return Ok(());
         } else {
-            std::fs::copy(image_path, &output_path).map_err(|e| e.to_string())?;
-
-            let file_path_str = output_path.to_str().unwrap();
+            std::fs::copy(input_path, &output_path).map_err(|e| e.to_string())?;
 
             let quality_str = quality.clamp(1, 100).to_string();
 
             let result = self
-                .run_pngquant(&quality_str, file_path_str, image_path, strip_metadata)
+                .run_pngquant(&quality_str, output_path, input_path, strip_metadata)
                 .await;
 
             match result {
@@ -276,14 +335,15 @@ impl ImageCompressor {
 
                     self.run_pngquant(
                         &format!("0-{}", quality),
-                        file_path_str,
-                        image_path,
+                        output_path,
+                        input_path,
                         strip_metadata,
                     )
-                    .await
+                    .await?;
+                    return Ok(());
                 }
-                Ok(path) => {
-                    return Ok(path);
+                Ok(_) => {
+                    return Ok(());
                 }
             }
         }
@@ -304,8 +364,9 @@ impl ImageCompressor {
 
         log::info!("[image] pngquant command: {:?}", args);
 
-        let command = self
-            .pngquant
+        let mut pngquant_cmd = self.get_pngquant_command()?;
+
+        let command = pngquant_cmd
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -360,24 +421,18 @@ impl ImageCompressor {
 
     async fn compress_jpeg(
         &mut self,
-        image_path: &str,
-        quality: u8,
-        image_id: &str,
+        input_path: &str,
+        output_path: &str,
         is_lossless: bool,
+        quality: u8,
         strip_metadata: bool,
-    ) -> Result<PathBuf, String> {
+    ) -> Result<(), String> {
         use std::process::Stdio;
         use std::sync::Arc;
 
-        let output_filename = format!("{}.jpg", image_id);
-        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
-            .iter()
-            .collect();
-
-        std::fs::copy(image_path, &output_path).map_err(|e| e.to_string())?;
+        std::fs::copy(input_path, &output_path).map_err(|e| e.to_string())?;
 
         let jpeg_quality = quality.max(1).min(100).to_string();
-        let file_path_str = output_path.to_str().unwrap();
 
         let mut args: Vec<&str> = vec!["-o", "-q", "--all-progressive", "--strip-all"];
 
@@ -388,12 +443,13 @@ impl ImageCompressor {
             args.push(&jpeg_quality);
         }
 
-        args.push(file_path_str);
+        args.push(output_path);
 
         log::info!("[image] jpegoptim final command{:?}", args);
 
-        let command = self
-            .jpegoptim
+        let mut jpegoptim_cmd = self.get_jpegoptim_command()?;
+
+        let command = jpegoptim_cmd
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -412,11 +468,11 @@ impl ImageCompressor {
                         if !strip_metadata {
                             let _ = self.copy_image_metadata(
                                 ImageContainer::Jpeg,
-                                image_path,
-                                file_path_str,
+                                input_path,
+                                output_path,
                             );
                         }
-                        Ok(output_path)
+                        Ok(())
                     }
                     Ok(_) => Err(String::from("jpegoptim failed")),
                     Err(e) => Err(format!("jpegoptim error: {}", e)),
@@ -428,18 +484,13 @@ impl ImageCompressor {
 
     async fn compress_webp(
         &mut self,
-        image_path: &str,
-        quality: u8,
-        image_id: &str,
+        input_path: &str,
+        output_path: &str,
         is_lossless: bool,
+        quality: u8,
         strip_metadata: bool,
-    ) -> Result<PathBuf, String> {
-        let output_filename = format!("{}.webp", image_id);
-        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
-            .iter()
-            .collect();
-
-        let img = ImageReader::open(image_path)
+    ) -> Result<(), String> {
+        let img = ImageReader::open(input_path)
             .map_err(|e| e.to_string())?
             .decode()
             .map_err(|e| e.to_string())?;
@@ -457,32 +508,23 @@ impl ImageCompressor {
             encoder.encode(encoder_quality as f32)
         };
 
-        std::fs::write(&output_path, webp_data.to_vec()).map_err(|e| e.to_string())?;
-
         if strip_metadata {
             // No support for webp container for now
         }
+        std::fs::write(&output_path, webp_data.to_vec()).map_err(|e| e.to_string())?;
 
-        Ok(output_path)
+        Ok(())
     }
 
     async fn compress_gif(
         &mut self,
-        image_path: &str,
-        quality: u8,
-        image_id: &str,
+        input_path: &str,
+        output_path: &str,
         is_lossless: bool,
+        quality: u8,
         strip_metadata: bool,
-    ) -> Result<PathBuf, String> {
-        let output_filename = format!("{}.gif", image_id);
-        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
-            .iter()
-            .collect();
-
-        let output_path_str = output_path
-            .to_str()
-            .ok_or("Invalid output path")?
-            .to_string();
+    ) -> Result<(), String> {
+        let output_path_str = output_path.to_string();
 
         let gifski_quality = if is_lossless {
             100 // No support for true lossless, we'll just compress into highest quality
@@ -492,7 +534,7 @@ impl ImageCompressor {
 
         let quality_str = gifski_quality.to_string();
 
-        let args = vec!["-Q", &quality_str, "-o", &output_path_str, image_path];
+        let args = vec!["-Q", &quality_str, "-o", &output_path_str, input_path];
 
         if strip_metadata {
             // No support for gif container for now
@@ -500,8 +542,9 @@ impl ImageCompressor {
 
         log::info!("[image] gifski command: {:?}", args);
 
-        let command = self
-            .gifski
+        let mut gifski_cmd = self.get_gifski_command()?;
+
+        let command = gifski_cmd
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -517,24 +560,19 @@ impl ImageCompressor {
             Err(e) => return Err(format!("gifski error: {}", e)),
         };
 
-        Ok(output_path)
+        Ok(())
     }
 
     async fn compress_svg(
         &mut self,
-        image_path: &str,
-        _quality: u8, // irrelevant
-        image_id: &str,
+        input_path: &str,
+        output_path: &str,
         _is_lossless: bool, // irrelevant
+        _quality: u8,       // irrelevant
         strip_metadata: bool,
-    ) -> Result<PathBuf, String> {
-        let output_filename = format!("{}.svg", image_id);
-        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
-            .iter()
-            .collect();
-
+    ) -> Result<(), String> {
         let svg_content =
-            svgcleaner::cleaner::load_file(image_path).map_err(|err| err.to_string())?;
+            svgcleaner::cleaner::load_file(input_path).map_err(|err| err.to_string())?;
 
         let tree = usvg::Tree::from_str(&svg_content, &usvg::Options::default()).unwrap();
         let normalized_svg = tree.to_string(&usvg::WriteOptions::default());
@@ -587,49 +625,47 @@ impl ImageCompressor {
         )
         .map_err(|err| err.to_string())?;
 
-        svgcleaner::cleaner::save_file(
-            &doc.to_string().into_bytes(),
-            output_path.to_str().unwrap(),
-        )
-        .map_err(|err| err.to_string())?;
+        svgcleaner::cleaner::save_file(&doc.to_string().into_bytes(), output_path)
+            .map_err(|err| err.to_string())?;
 
-        Ok(output_path)
+        Ok(())
     }
 
     pub fn convert_raster_img_to_svg(
         &self,
-        image_path: &str,
+        input_path: &str,
+        output_path: &str,
         quality: u8,
-        image_id: &str,
-    ) -> Result<PathBuf, String> {
-        let output_filename = format!("{}.svg", image_id);
-        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
-            .iter()
-            .collect();
-
+    ) -> Result<(), String> {
         let q = quality.clamp(1, 100) as f32;
-        let filter_speckle = (1.0 + (100.0 - q) * (127.0 / 99.0)).round() as usize;
+        let filter_speckle = ((100.0 - q) * (128.0 / 99.0)).round() as usize;
 
+        // @ref: https://www.visioncortex.org/vtracer/
         vtracer::convert_image_to_svg(
-            &PathBuf::from(&image_path),
-            &output_path,
+            &PathBuf::from(input_path),
+            &PathBuf::from(output_path),
             vtracer::Config {
                 filter_speckle,
+                color_precision: 8,
+                layer_difference: 0,
+                corner_threshold: 180,
+                splice_threshold: 0,
+                length_threshold: 8.0,
                 ..vtracer::Config::from_preset(vtracer::Preset::Photo)
             },
         )
         .map_err(|err| err.to_string())?;
 
-        Ok(output_path)
+        Ok(())
     }
 
-    pub fn convert_svg_to_png(&self, image_path: &str, image_id: &str) -> Result<PathBuf, String> {
+    pub fn convert_svg_to_png(&self, input_path: &str, image_id: &str) -> Result<(), String> {
         let output_filename = format!("{}.png", image_id);
         let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
             .iter()
             .collect();
 
-        let svg_data = fs::read(image_path).map_err(|err| err.to_string())?;
+        let svg_data = fs::read(input_path).map_err(|err| err.to_string())?;
         let svg_string = std::str::from_utf8(&svg_data).map_err(|err| err.to_string())?;
 
         let tree = usvg::Tree::from_str(svg_string, &usvg::Options::default())
@@ -646,102 +682,7 @@ impl ImageCompressor {
             .save_png(output_path.clone())
             .map_err(|err| err.to_string())?;
 
-        Ok(output_path)
-    }
-
-    pub fn convert_video_to_gif(
-        &self,
-        video_path: &str,
-        quality: u8,
-        video_id: &str,
-        dimensions: Option<(u32, u32)>,
-        fps: Option<&str>,
-    ) -> Result<PathBuf, String> {
-        // TODO: Implement CANCEL event and progress support.
-        let output_filename = format!("{}.gif", video_id);
-        let output_path: PathBuf = [self.assets_dir.clone(), PathBuf::from(&output_filename)]
-            .iter()
-            .collect();
-
-        let output_path_str = output_path
-            .to_str()
-            .ok_or("Invalid output path")?
-            .to_string();
-
-        let ffmpeg_args = vec!["-i", video_path, "-f", "yuv4mpegpipe", "-"];
-
-        let mut ffmpeg_cmd = self.ffmpeg.get_command()?;
-
-        let mut ffmpeg_child = ffmpeg_cmd
-            .args(&ffmpeg_args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
-
-        let ffmpeg_stdout = ffmpeg_child
-            .stdout
-            .take()
-            .ok_or("Failed to get ffmpeg stdout")?;
-
-        let gifski_quality = quality.clamp(1, 100);
-        let gifski_quality_str = gifski_quality.to_string();
-        let mut gifski_args: Vec<String> = vec!["-Q".to_string(), gifski_quality_str.clone()];
-
-        if let Some(fps_val) = fps {
-            gifski_args.push("-r".to_string());
-            gifski_args.push(fps_val.to_string());
-        }
-
-        if let Some((width, height)) = dimensions {
-            gifski_args.push("-W".to_string());
-            gifski_args.push(width.to_string());
-            gifski_args.push("-H".to_string());
-            gifski_args.push(height.to_string());
-        }
-
-        gifski_args.push("-o".to_string());
-        gifski_args.push(output_path_str.clone());
-        gifski_args.push("-".to_string());
-
-        let gifski_args_refs: Vec<&str> = gifski_args.iter().map(|s| s.as_str()).collect();
-
-        log::info!(
-            "[image] video to gif final command: {:?} | {:?}",
-            ffmpeg_args,
-            gifski_args_refs
-        );
-
-        let mut gifski_cmd = match self.app.shell().sidecar("compresso_gifski") {
-            Ok(command) => Command::from(command),
-            Err(err) => return Err(format!("[gifski-sidecar]: {:?}", err.to_string())),
-        };
-
-        let mut gifski_child = gifski_cmd
-            .args(&gifski_args_refs)
-            .stdin(ffmpeg_stdout)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to run gifski: {}", e))?;
-
-        let ffmpeg_result = ffmpeg_child.wait();
-        let gifski_result = gifski_child.wait();
-
-        match (ffmpeg_result, gifski_result) {
-            (Ok(ffmpeg_status), Ok(gifski_status)) => {
-                if ffmpeg_status.success() && gifski_status.success() {
-                    Ok(output_path)
-                } else {
-                    Err(format!(
-                        "Video to GIF conversion failed - ffmpeg: {:?}, gifski: {:?}",
-                        ffmpeg_status, gifski_status
-                    ))
-                }
-            }
-            (Err(ffmpeg_err), _) => Err(format!("ffmpeg error: {}", ffmpeg_err)),
-            (_, Err(gifski_err)) => Err(format!("gifski error: {}", gifski_err)),
-        }
+        Ok(())
     }
 
     pub async fn compress_images_batch(
@@ -786,7 +727,7 @@ impl ImageCompressor {
                 }
             });
 
-            let image_path = &image_config.image_path;
+            let input_path = &image_config.image_path;
             let quality = image_config.quality;
             let convert_to_extension = image_config.convert_to_extension.as_deref();
             let strip_metadata = image_config.strip_metadata.unwrap_or(true);
@@ -794,13 +735,13 @@ impl ImageCompressor {
 
             match self
                 .compress_image(
-                    image_path,
+                    input_path,
                     convert_to_extension,
+                    is_lossless,
                     quality,
                     image_id,
                     Some(batch_id),
                     Some(strip_metadata),
-                    is_lossless,
                 )
                 .await
             {
@@ -831,6 +772,138 @@ impl ImageCompressor {
         }
 
         Ok(ImageBatchCompressionResult { results })
+    }
+
+    pub async fn convert_image_via_ffmpeg(
+        &self,
+        input_path: &str,
+        output_path: &str,
+        output_format: &str,
+        quality: u8,
+        strip_metadata: bool,
+    ) -> Result<(), String> {
+        if !PathBuf::from(input_path).exists() {
+            return Err(String::from("Input image file does not exist."));
+        }
+
+        let mut cmd_args: Vec<String> = Vec::new();
+
+        cmd_args.push("-i".to_string());
+        cmd_args.push(input_path.to_string());
+
+        let output_format_lower = output_format.to_lowercase();
+        match output_format_lower.as_str() {
+            "jpg" | "jpeg" => {
+                let jpeg_qscale = (((100 - quality) as f32 / 99.0) * 9.0 + 1.0).round() as u32;
+                cmd_args.push("-q:v".to_string()); // 1-31 scale (lower is better) but we'll interpolate between 1-10 only
+                cmd_args.push(jpeg_qscale.to_string());
+                cmd_args.push("-filter_complex".to_string());
+                cmd_args.push(
+                    "color=black:s=1x1[bg];[bg][0:v]scale2ref[bg][img];[bg][img]overlay[out]"
+                        .to_string(),
+                );
+                cmd_args.push("-map".to_string());
+                cmd_args.push("[out]".to_string());
+                cmd_args.push("-frames:v".to_string());
+                cmd_args.push("1".to_string());
+            }
+            "png" => {
+                let compression_level = (((quality as f32 - 1.0) / 99.0 * 4.0) + 5.0).round() as u8;
+                cmd_args.push("-compression_level".to_string());
+                cmd_args.push(compression_level.to_string()); // 0-9 (higher is better) but we'll interpolate between 4-9 only
+                cmd_args.push("-pred".to_string());
+                cmd_args.push("mixed".to_string());
+            }
+            "webp" => {
+                let webp_quality = ((quality as f32 - 1.0) / 99.0 * 50.0 + 50.0).round() as u8;
+                cmd_args.push("-q:v".to_string());
+                cmd_args.push(webp_quality.to_string()); // 0-100 (higher is better) but we'll interpolate between 50-100 only
+                cmd_args.push("-lossless".to_string());
+                cmd_args.push("0".to_string());
+            }
+            _ => {
+                return Err("Unsupported output format".to_string());
+            }
+        }
+
+        if strip_metadata {
+            cmd_args.push("-map_metadata".to_string());
+            cmd_args.push("-1".to_string());
+        }
+
+        cmd_args.push("-y".to_string());
+        cmd_args.push(output_path.to_string());
+
+        log::info!("[ffmpeg-image] conversion command: {:?}", cmd_args);
+
+        let ffmpeg = FFMPEG::new(&self.app)?;
+        let mut ffmpeg_cmd = ffmpeg.get_ffmpeg_command()?;
+
+        let command = ffmpeg_cmd
+            .args(&cmd_args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        match SharedChild::spawn(command) {
+            Ok(child) => {
+                let cp = Arc::new(child);
+                let cp_clone1 = cp.clone();
+                let cp_clone2 = cp.clone();
+
+                let window = match self.app.get_webview_window("main") {
+                    Some(window) => window,
+                    None => return Err(String::from("Could not attach to main window")),
+                };
+
+                let destroy_event_id =
+                    window.listen(TauriEvents::Destroyed.get_str("key").unwrap(), move |_| {
+                        log::info!("[tauri] window destroyed");
+                        let _ = cp.kill();
+                    });
+
+                let cancel_event_id = window.listen(
+                    CustomEvents::CancelInProgressCompression.as_ref(),
+                    move |evt| {
+                        let payload_str = evt.payload();
+                        if let Ok(_payload) =
+                            serde_json::from_str::<CancelInProgressCompressionPayload>(payload_str)
+                        {
+                            let _ = cp_clone2.kill();
+                        }
+                    },
+                );
+
+                let handle = tokio::spawn(async move {
+                    match cp_clone1.wait() {
+                        Ok(status) if status.success() => Ok(()),
+                        Ok(_) => Err(String::from("FFmpeg conversion failed")),
+                        Err(e) => Err(format!("FFmpeg error: {}", e)),
+                    }
+                });
+
+                match handle.await {
+                    Ok(result) => {
+                        window.unlisten(destroy_event_id);
+                        window.unlisten(cancel_event_id);
+
+                        result?;
+
+                        if !PathBuf::from(output_path).exists() {
+                            return Err(String::from("Output file was not created"));
+                        }
+
+                        let output_metadata = get_file_metadata(&output_path)?;
+                        if output_metadata.size == 0 {
+                            return Err(String::from("Output file is empty"));
+                        }
+
+                        Ok(())
+                    }
+                    Err(e) => Err(format!("Conversion task failed: {}", e)),
+                }
+            }
+            Err(e) => Err(format!("Failed to spawn FFmpeg: {}", e)),
+        }
     }
 
     pub fn copy_image_metadata(

@@ -30,14 +30,3 @@ pub async fn compress_images_batch(
         .map(|result| Ok(result))
         .unwrap_or_else(|err| Err(err))
 }
-
-#[tauri::command]
-pub async fn convert_svg_to_png(
-    app: tauri::AppHandle,
-    image_path: &str,
-    image_id: &str,
-) -> Result<String, String> {
-    let image_compressor = image::ImageCompressor::new(&app)?;
-    let output_path = image_compressor.convert_svg_to_png(image_path, image_id)?;
-    Ok(output_path.to_string_lossy().to_string())
-}

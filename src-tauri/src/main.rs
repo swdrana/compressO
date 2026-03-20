@@ -30,10 +30,7 @@ use lib::tauri_commands::{
         copy_file_to_clipboard, delete_cache, delete_file, get_file_metadata, get_image_dimension,
         get_svg_dimension, move_file, read_files_from_clipboard, read_files_from_paths,
     },
-    image::{
-        __cmd__compress_images_batch, __cmd__convert_svg_to_png, compress_images_batch,
-        convert_svg_to_png,
-    },
+    image::{__cmd__compress_images_batch, compress_images_batch},
     media::{__cmd__compress_media_batch, compress_media_batch},
     updater::{
         __cmd__check_update, __cmd__download_and_install_update, check_update,
@@ -283,7 +280,6 @@ async fn main() {
             clear_dock_badge,
             check_update,
             download_and_install_update,
-            convert_svg_to_png
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

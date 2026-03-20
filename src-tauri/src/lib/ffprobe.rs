@@ -1,6 +1,6 @@
 use crate::domain::{
-    AudioStream, Chapter, ContainerInfo, Disposition, ImageInfo, SubtitleStream, TauriEvents,
-    VideoInfo, VideoStream,
+    AudioStream, Chapter, ContainerInfo, Disposition, SubtitleStream, TauriEvents, VideoInfo,
+    VideoStream,
 };
 use serde_json::Value;
 use shared_child::SharedChild;
@@ -17,18 +17,21 @@ use tauri_plugin_shell::ShellExt;
 
 pub struct FFPROBE {
     app: AppHandle,
-    ffprobe: Command,
 }
 
 impl FFPROBE {
     pub fn new(app: &tauri::AppHandle) -> Result<Self, String> {
-        match app.shell().sidecar("compresso_ffprobe") {
-            Ok(command) => Ok(Self {
-                app: app.to_owned(),
-                ffprobe: Command::from(command),
-            }),
-            Err(err) => Err(format!("[ffprobe-sidecar]: {:?}", err.to_string())),
-        }
+        Ok(Self {
+            app: app.to_owned(),
+        })
+    }
+
+    pub fn get_ffprobe_command(&self) -> Result<Command, String> {
+        self.app
+            .shell()
+            .sidecar("compresso_ffprobe")
+            .map(Command::from)
+            .map_err(|e| format!("Failed to create ffprobe command: {}", e))
     }
 
     /// Gets video basic information (duration, dimensions, fps) using ffprobe JSON output
@@ -37,8 +40,9 @@ impl FFPROBE {
             return Err(String::from("File does not exist in given path."));
         }
 
-        let command = self
-            .ffprobe
+        let mut ffprobe_cmd = self.get_ffprobe_command()?;
+
+        let command = ffprobe_cmd
             .args([
                 "-v",
                 "error",
@@ -185,8 +189,9 @@ impl FFPROBE {
 
     // Get all video streams from the source video
     pub async fn get_video_streams(&mut self, path: &str) -> Result<Vec<VideoStream>, String> {
-        let command = self
-            .ffprobe
+        let mut ffprobe_cmd = self.get_ffprobe_command()?;
+
+        let command = ffprobe_cmd
             .args([
                 "-v",
                 "error",
@@ -467,8 +472,9 @@ impl FFPROBE {
             return Err(String::from("File does not exist in given path."));
         }
 
-        let command = self
-            .ffprobe
+        let mut ffprobe_cmd = self.get_ffprobe_command()?;
+
+        let command = ffprobe_cmd
             .args([
                 "-v", "error",
                 "-show_entries",
@@ -629,8 +635,8 @@ impl FFPROBE {
 
     // Get all audio streams from the media
     pub async fn get_audio_streams(&mut self, path: &str) -> Result<Vec<AudioStream>, String> {
-        let command = self
-            .ffprobe
+        let mut ffprobe_cmd = self.get_ffprobe_command()?;
+        let command = ffprobe_cmd
             .args([
                 "-v",
                 "error",
@@ -840,8 +846,8 @@ impl FFPROBE {
         &mut self,
         path: &str,
     ) -> Result<Vec<SubtitleStream>, String> {
-        let command = self
-            .ffprobe
+        let mut ffprobe_cmd = self.get_ffprobe_command()?;
+        let command = ffprobe_cmd
             .args([
                 "-v",
                 "error",
@@ -1029,8 +1035,8 @@ impl FFPROBE {
 
     /// Get all chapters from the media
     pub async fn get_chapters(&mut self, path: &str) -> Result<Vec<Chapter>, String> {
-        let command = self
-            .ffprobe
+        let mut ffprobe_cmd = self.get_ffprobe_command()?;
+        let command = ffprobe_cmd
             .args([
                 "-v",
                 "error",

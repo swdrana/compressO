@@ -170,11 +170,11 @@ pub async fn compress_media_batch(
                 .compress_image(
                     image_path,
                     convert_to_extension,
+                    is_lossless,
                     quality,
                     image_id,
                     Some(batch_id.as_str()),
                     strip_metadata,
-                    is_lossless,
                 )
                 .await
             {
