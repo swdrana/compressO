@@ -8,7 +8,6 @@ import Tabs from '@/components/Tabs'
 import Title from '@/components/Title'
 import { zoomInTransition } from '@/utils/animation'
 import { cn } from '@/utils/tailwind'
-import { appProxy } from '../-state'
 import CompressionActions from './CompressionActions'
 import CompressionProgress from './CompressionProgress'
 import CustomizeMediaOnBatchActions from './CustomizeMediaOnBatchActions'
@@ -17,6 +16,7 @@ import PreviewBatchMedia from './PreviewBatchMedia'
 import PreviewSingleVideo from './PreviewSingleMedia'
 import StartCompression from './StartCompression'
 import styles from './styles.module.css'
+import { appProxy } from '../-state'
 
 function MediaConfig() {
   const {
@@ -34,7 +34,6 @@ function MediaConfig() {
       childrenProps={{
         className: 'h-full',
       }}
-      hideLogo
     >
       <div className={cn(['h-full p-6', styles.videoConfigContainer])}>
         <section

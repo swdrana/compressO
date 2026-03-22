@@ -6,17 +6,15 @@ import { cn } from '@/utils/tailwind'
 import { LayoutContext } from './context'
 import Footer from './Footer'
 import Header from './Header'
-import Image from '../Image'
 
 interface LayoutProps {
   children: React.ReactNode
   containerProps?: ComponentProps<'section'>
   childrenProps?: ComponentProps<'div'>
-  hideLogo?: boolean
 }
 
 const Layout = (props: LayoutProps) => {
-  const { children, containerProps, childrenProps, hideLogo = false } = props
+  const { children, containerProps, childrenProps } = props
 
   const main: React.ReactNode[] = []
   const header: React.ReactNode[] = []
@@ -53,11 +51,6 @@ const Layout = (props: LayoutProps) => {
           containerProps?.className ?? '',
         ])}
       >
-        {!hideLogo ? (
-          <div className="absolute top-4 left-4 flex justify-center items-center">
-            <Image src="/logo.png" alt="logo" width={40} height={40} />
-          </div>
-        ) : null}
         {header}
         <div {...childrenProps}>{main}</div>
         {footer}
