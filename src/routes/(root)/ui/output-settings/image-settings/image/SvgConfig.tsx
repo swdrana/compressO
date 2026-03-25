@@ -8,12 +8,12 @@ import Slider from '@/components/Slider'
 import Switch from '@/components/Switch'
 import Tooltip from '@/components/Tooltip'
 import { useSyncState } from '@/hooks/useSyncState'
-import { slideDownTransition } from '@/utils/animation'
 import {
   appProxy,
   normalizeBatchMediaConfig,
   svgSettingInitialState,
-} from '../../../-state'
+} from '@/routes/(root)/-state'
+import { slideDownTransition } from '@/utils/animation'
 
 type SvgConfigProps = {
   mediaIndex: number

@@ -143,16 +143,17 @@ pub struct VideoCompressionConfig {
     pub fps: Option<String>,
     pub video_codec: Option<String>,
     pub transform_history: Option<MediaTransformHistory>,
-    pub metadata_config: Option<VideoMetadataConfig>,
+    pub strip_metadata: Option<bool>,
+    pub metadata_config: Option<MediaMetadataConfig>,
     pub custom_thumbnail_path: Option<String>,
     pub should_enable_custom_thumbnail: Option<bool>,
     pub trim_segments: Option<Vec<VideoTrimSegment>>,
     pub subtitles_config: Option<SubtitlesConfig>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct VideoMetadataConfig {
+pub struct MediaMetadataConfig {
     pub title: Option<String>,
     pub artist: Option<String>,
     pub album: Option<String>,

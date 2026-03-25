@@ -9,7 +9,7 @@ import Divider from '@/components/Divider'
 import Switch from '@/components/Switch'
 import TextArea from '@/components/TextArea'
 import TextInput from '@/components/TextInput'
-import type { VideoMetadataConfig } from '@/types/app'
+import type { MediaMetadataConfig } from '@/types/app'
 import { slideDownTransition } from '@/utils/animation'
 import {
   appProxy,
@@ -36,12 +36,12 @@ function Metadata({ mediaIndex }: MetadataProps) {
       ? media[mediaIndex]
       : null
   const { config } = video ?? {}
-  const { shouldPreserveMetadata, metadataConfig, convertToExtension } =
+  const { shouldStripMetadata, metadataConfig, convertToExtension } =
     config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
   const updateMetadataField = useCallback(
     (
-      field: keyof VideoMetadataConfig,
+      field: keyof MediaMetadataConfig,
       value: string | boolean | null | undefined,
     ) => {
       if (
@@ -98,17 +98,17 @@ function Metadata({ mediaIndex }: MetadataProps) {
     [mediaIndex],
   )
 
-  const handlePreserveMetadataToggle = useCallback(() => {
+  const handleStripMetadataToggle = useCallback(() => {
     if (
       mediaIndex >= 0 &&
       appProxy.state.media[mediaIndex].type === 'video' &&
       appProxy.state.media[mediaIndex]?.config
     ) {
-      appProxy.state.media[mediaIndex].config.shouldPreserveMetadata =
-        !appProxy.state.media[mediaIndex].config.shouldPreserveMetadata
+      appProxy.state.media[mediaIndex].config.shouldStripMetadata =
+        !appProxy.state.media[mediaIndex].config.shouldStripMetadata
       appProxy.state.media[mediaIndex].isConfigDirty = true
 
-      if (appProxy.state.media[mediaIndex].config.shouldPreserveMetadata) {
+      if (appProxy.state.media[mediaIndex].config.shouldStripMetadata) {
         appProxy.state.media[mediaIndex].config.metadataConfig = null
       } else {
         appProxy.state.media[mediaIndex].config.metadataConfig = cloneDeep(
@@ -117,13 +117,13 @@ function Metadata({ mediaIndex }: MetadataProps) {
       }
     } else {
       if (appProxy.state.media.length > 1) {
-        appProxy.state.commonConfigForBatchCompression.videoConfig.shouldPreserveMetadata =
+        appProxy.state.commonConfigForBatchCompression.videoConfig.shouldStripMetadata =
           !appProxy.state.commonConfigForBatchCompression.videoConfig
-            .shouldPreserveMetadata
+            .shouldStripMetadata
 
         if (
           appProxy.state.commonConfigForBatchCompression.videoConfig
-            .shouldPreserveMetadata
+            .shouldStripMetadata
         ) {
           appProxy.state.commonConfigForBatchCompression.videoConfig.metadataConfig =
             null
@@ -147,18 +147,18 @@ function Metadata({ mediaIndex }: MetadataProps) {
   return (
     <>
       <Switch
-        isSelected={shouldPreserveMetadata}
-        onValueChange={handlePreserveMetadataToggle}
+        isSelected={shouldStripMetadata}
+        onValueChange={handleStripMetadataToggle}
         isDisabled={shouldDisableInput}
       >
         <div className="flex justify-center items-center">
           <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
-            Preserve Metadata
+            Strip Metadata
           </span>
         </div>
       </Switch>
       <AnimatePresence mode="wait">
-        {!shouldPreserveMetadata ? (
+        {!shouldStripMetadata ? (
           <Card className="px-2 my-2 pb-4 shadow-none border-1 dark:border-none">
             <motion.div {...slideDownTransition} className="space-y-4 mt-2">
               <div className="text-zinc-700 dark:text-zinc-400">

@@ -15,7 +15,7 @@ import {
   VideoStream,
 } from '@/types/compression'
 
-export type VideoMetadataConfig = {
+export type MediaMetadataConfig = {
   title?: string | null
   artist?: string | null
   album?: string | null
@@ -73,8 +73,8 @@ export type VideoConfig = {
   shouldTrimVideo?: boolean
   trimConfig?: TimelineAction[]
   isVideoTrimEditMode?: boolean
-  shouldPreserveMetadata?: boolean
-  metadataConfig?: VideoMetadataConfig | null
+  shouldStripMetadata?: boolean
+  metadataConfig?: MediaMetadataConfig | null
   customThumbnailPath?: string | null
   shouldEnableCustomThumbnail?: boolean
   shouldEnableCustomChannel?: boolean
@@ -133,7 +133,8 @@ export type ImageConfig = {
   convertToExtension: keyof typeof extensions.image | '-'
   isLossless: boolean
   quality: number
-  stripMetadata: boolean
+  shouldStripMetadata: boolean
+  metadataConfig?: MediaMetadataConfig | null
   svgScaleFactor?: number
   svgConfig?: SvgConfig
   shouldEnableAdvancedSvgSetting?: boolean

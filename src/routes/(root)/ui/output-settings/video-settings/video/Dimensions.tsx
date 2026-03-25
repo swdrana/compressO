@@ -6,61 +6,61 @@ import { subscribeKey } from 'valtio/utils'
 import Button from '@/components/Button'
 import NumberInput from '@/components/NumberInput'
 import Switch from '@/components/Switch'
-import { appProxy } from '@/routes/(root)/-state'
 import { slideDownTransition } from '@/utils/animation'
+import { appProxy } from '../../../../-state'
 
-type ImageDimensionsProps = {
+type VideoDimensionsProps = {
   mediaIndex: number
 }
 
-function ImageDimensions({ mediaIndex }: ImageDimensionsProps) {
+function Dimensions({ mediaIndex }: VideoDimensionsProps) {
   if (mediaIndex < 0) return
 
   const {
     state: { media, isCompressing, isProcessCompleted, isLoadingMediaFiles },
   } = useSnapshot(appProxy)
-  const image =
-    media.length > 0 && media[mediaIndex].type === 'image'
+  const video =
+    media.length > 0 && media[mediaIndex].type === 'video'
       ? media[mediaIndex]
       : null
-  const { config, dimensions: imageOriginalDimensions } = image ?? {}
+  const { config, dimensions: videoOriginalDimensions } = video ?? {}
   const {
     shouldEnableCustomDimensions,
-    customDimensions: imageCustomDimensions,
+    customDimensions: videoCustomDimensions,
   } = config ?? {}
   const isCropping = Boolean(
-    config?.shouldTransformImage &&
-      config?.transformImageConfig?.transforms?.crop,
+    config?.shouldTransformVideo &&
+      config?.transformVideoConfig?.transforms?.crop,
   )
 
   const [dimensions, setDimensions] = React.useState(() => ({
     width:
-      (imageCustomDimensions
-        ? imageCustomDimensions[0]
-        : imageOriginalDimensions?.width) ?? 0,
+      (videoCustomDimensions
+        ? videoCustomDimensions[0]
+        : videoOriginalDimensions?.width) ?? 0,
     height:
-      (imageCustomDimensions
-        ? imageCustomDimensions[1]
-        : imageOriginalDimensions?.height) ?? 0,
+      (videoCustomDimensions
+        ? videoCustomDimensions[1]
+        : videoOriginalDimensions?.height) ?? 0,
   }))
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined
 
-    if (config && appProxy.state.media[mediaIndex].type === 'image') {
+    if (config && appProxy.state.media[mediaIndex].type === 'video') {
       unsubscribe = subscribeKey(
         appProxy.state.media[mediaIndex].config,
-        'shouldTransformImage',
-        (shouldTransformImage) => {
-          const targetImage =
-            appProxy.state.media[mediaIndex].type === 'image'
+        'shouldTransformVideo',
+        (shouldTransformVideo) => {
+          const targetVideo =
+            appProxy.state.media[mediaIndex].type === 'video'
               ? appProxy.state.media[mediaIndex]
               : null
-          if (targetImage) {
-            if (shouldTransformImage) {
-              if (targetImage.config.transformImageConfig) {
+          if (targetVideo) {
+            if (shouldTransformVideo) {
+              if (targetVideo.config.transformVideoConfig) {
                 const transforms =
-                  targetImage.config.transformImageConfig?.transforms
+                  targetVideo.config.transformVideoConfig?.transforms
                 if (transforms?.crop) {
                   setDimensions({
                     width: transforms.crop.width,
@@ -69,10 +69,10 @@ function ImageDimensions({ mediaIndex }: ImageDimensionsProps) {
                 }
               }
             } else {
-              if (targetImage.dimensions) {
+              if (targetVideo.dimensions) {
                 setDimensions({
-                  width: targetImage.dimensions.width!,
-                  height: targetImage.dimensions.height!,
+                  width: targetVideo.dimensions.width!,
+                  height: targetVideo.dimensions.height!,
                 })
               }
             }
@@ -88,18 +88,18 @@ function ImageDimensions({ mediaIndex }: ImageDimensionsProps) {
   useEffect(() => {
     let unsubscribe: (() => void) | undefined
 
-    const transformImageConfig =
-      appProxy.state.media[mediaIndex].type === 'image'
-        ? appProxy.state.media[mediaIndex]?.config?.transformImageConfig
+    const transformVideoConfig =
+      appProxy.state.media[mediaIndex].type === 'video'
+        ? appProxy.state.media[mediaIndex]?.config?.transformVideoConfig
         : null
-    if (isCropping && transformImageConfig?.transforms?.crop) {
-      unsubscribe = subscribe(transformImageConfig, () => {
-        if (appProxy.state.media[mediaIndex].type === 'image') {
-          const targetImage = appProxy.state.media[mediaIndex]
-          const shouldTransformImage = targetImage.config.shouldTransformImage
+    if (isCropping && transformVideoConfig?.transforms?.crop) {
+      unsubscribe = subscribe(transformVideoConfig, () => {
+        if (appProxy.state.media[mediaIndex].type === 'video') {
+          const targetVideo = appProxy.state.media[mediaIndex]
+          const shouldTransformVideo = targetVideo.config.shouldTransformVideo
           const transformCrop =
-            targetImage.config.transformImageConfig?.transforms?.crop
-          if (shouldTransformImage && transformCrop) {
+            targetVideo.config.transformVideoConfig?.transforms?.crop
+          if (shouldTransformVideo && transformCrop) {
             const _dimensions: [number, number] = [
               transformCrop?.width ?? 0,
               transformCrop?.height ?? 0,
@@ -126,30 +126,30 @@ function ImageDimensions({ mediaIndex }: ImageDimensionsProps) {
         !value ||
         value <= 0 ||
         mediaIndex < 0 ||
-        appProxy.state.media[mediaIndex].type !== 'image'
+        appProxy.state.media[mediaIndex].type !== 'video'
       ) {
         return
       }
-      const targetImage = appProxy.state.media[mediaIndex]
-      const targetImageDimensions = targetImage.config?.shouldTransformImage
+      const targetVideo = appProxy.state.media[mediaIndex]
+      const targetVideoDimensions = targetVideo.config?.shouldTransformVideo
         ? {
             width:
-              targetImage?.config?.transformImageConfig?.transforms?.crop
-                ?.width ?? targetImage?.dimensions?.width,
+              targetVideo?.config?.transformVideoConfig?.transforms?.crop
+                ?.width ?? targetVideo?.dimensions?.width,
             height:
-              targetImage?.config?.transformImageConfig?.transforms?.crop
-                ?.height ?? targetImage?.dimensions?.height,
+              targetVideo?.config?.transformVideoConfig?.transforms?.crop
+                ?.height ?? targetVideo?.dimensions?.height,
           }
-        : targetImage?.dimensions
+        : targetVideo?.dimensions
       if (
-        targetImageDimensions == null ||
-        Number.isNaN(targetImageDimensions?.width) ||
-        Number.isNaN(targetImageDimensions?.height)
+        targetVideoDimensions == null ||
+        Number.isNaN(targetVideoDimensions?.width) ||
+        Number.isNaN(targetVideoDimensions?.height)
       ) {
         return null
       }
       const aspectRatio =
-        targetImageDimensions.width! / targetImageDimensions.height!
+        targetVideoDimensions.width! / targetVideoDimensions.height!
       const _dimensions: [number, number] =
         type === 'width'
           ? [value, Math.round(value / aspectRatio)]
@@ -177,7 +177,7 @@ function ImageDimensions({ mediaIndex }: ImageDimensionsProps) {
         isSelected={shouldEnableCustomDimensions}
         onValueChange={() => {
           if (
-            appProxy.state.media[mediaIndex].type === 'image' &&
+            appProxy.state.media[mediaIndex].type === 'video' &&
             appProxy.state.media[mediaIndex]?.config
           ) {
             appProxy.state.media[
@@ -248,4 +248,4 @@ function ImageDimensions({ mediaIndex }: ImageDimensionsProps) {
   )
 }
 
-export default React.memo(ImageDimensions)
+export default React.memo(Dimensions)

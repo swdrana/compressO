@@ -129,7 +129,6 @@ impl ImageCompressor {
         let transform_input_path = if !original_extension.eq("svg")
             && (dimensions.is_some() || transform_history.is_some())
         {
-            log::info!("[image] Applying transformations before compression");
             let transform_temp_filename =
                 format!("{}_transformed.{}", image_id, original_extension);
             let transform_temp_path: PathBuf = [

@@ -12,7 +12,7 @@ type VideoExtensionProps = {
   mediaIndex: number
 }
 
-function VideoExtension({ mediaIndex }: VideoExtensionProps) {
+function Extension({ mediaIndex }: VideoExtensionProps) {
   const {
     state: {
       media,
@@ -99,4 +99,4 @@ function VideoExtension({ mediaIndex }: VideoExtensionProps) {
   )
 }
 
-export default VideoExtension
+export default Extension

@@ -9,13 +9,13 @@ import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
 import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
-const FPS = [24, 25, 30, 50, 60] as const
+const fps = [24, 25, 30, 50, 60] as const
 
 type VideoFPSProps = {
   mediaIndex: number
 }
 
-function VideoFPS({ mediaIndex }: VideoFPSProps) {
+function FPS({ mediaIndex }: VideoFPSProps) {
   const {
     state: {
       media,
@@ -29,7 +29,7 @@ function VideoFPS({ mediaIndex }: VideoFPSProps) {
     media.length > 0 && mediaIndex >= 0 && media[mediaIndex].type === 'video'
       ? media[mediaIndex]
       : null
-  const { config, fps } = video ?? {}
+  const { config, fps: videoFps } = video ?? {}
   const { shouldEnableCustomFPS, customFPS, convertToExtension } =
     config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
@@ -79,7 +79,7 @@ function VideoFPS({ mediaIndex }: VideoFPSProps) {
     isProcessCompleted ||
     isLoadingMediaFiles
 
-  const initialFpsValue = customFPS ?? fps ?? 30
+  const initialFpsValue = customFPS ?? videoFps ?? 30
 
   return (
     <>
@@ -135,7 +135,7 @@ function VideoFPS({ mediaIndex }: VideoFPSProps) {
                   label: '!text-gray-600 dark:!text-gray-400 text-xs',
                 }}
               >
-                {FPS?.map((f) => (
+                {fps?.map((f) => (
                   <SelectItem
                     key={String(f)}
                     textValue={String(f)}
@@ -153,4 +153,4 @@ function VideoFPS({ mediaIndex }: VideoFPSProps) {
   )
 }
 
-export default VideoFPS
+export default FPS

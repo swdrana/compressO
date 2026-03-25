@@ -5,11 +5,11 @@ import { proxy } from 'valtio'
 import {
   App,
   ImageConfig,
+  MediaMetadataConfig,
   VideoConfig,
-  VideoMetadataConfig,
 } from '../../types/app'
 
-export const videoMetadataConfigInitialState: VideoMetadataConfig = {
+export const videoMetadataConfigInitialState: MediaMetadataConfig = {
   title: '',
   album: '',
   artist: '',
@@ -41,7 +41,7 @@ export const videoConfigInitialState: VideoConfig = {
   shouldEnableAudioTrackSelection: false,
   quality: 50,
   shouldEnableQuality: false,
-  shouldPreserveMetadata: false,
+  shouldStripMetadata: true,
   metadataConfig: null,
   customThumbnailPath: null,
   shouldEnableCustomThumbnail: false,
@@ -69,7 +69,7 @@ export const imageConfigInitialState: ImageConfig = {
   convertToExtension: '-',
   isLossless: false,
   quality: 50,
-  stripMetadata: true,
+  shouldStripMetadata: true,
   svgScaleFactor: 4,
   shouldEnableAdvancedSvgSetting: false,
   svgConfig: svgSettingInitialState,

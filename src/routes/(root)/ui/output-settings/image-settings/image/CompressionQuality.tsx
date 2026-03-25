@@ -6,12 +6,12 @@ import { useSnapshot } from 'valtio'
 import Slider from '@/components/Slider'
 import Switch from '@/components/Switch'
 import { useSyncState } from '@/hooks/useSyncState'
-import { slideDownTransition } from '@/utils/animation'
 import {
   appProxy,
   imageConfigInitialState,
   normalizeBatchMediaConfig,
-} from '../../../-state'
+} from '@/routes/(root)/-state'
+import { slideDownTransition } from '@/utils/animation'
 
 type CompressionQualityProps = {
   mediaIndex: number

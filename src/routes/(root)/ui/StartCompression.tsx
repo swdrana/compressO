@@ -7,7 +7,7 @@ import { snapshot, useSnapshot } from 'valtio'
 
 import Button from '@/components/Button'
 import { compressMediaBatch } from '@/tauri/commands/media'
-import { VideoMetadataConfig } from '@/types/app'
+import { MediaMetadataConfig } from '@/types/app'
 import {
   CustomEvents,
   ImageCompressionConfig,
@@ -150,11 +150,11 @@ function StartCompression() {
                       ? ((v.config.transformVideoConfig?.transformHistory ??
                           []) as MediaTransformHistory[])
                       : null,
+                    stripMetadata: v.config?.shouldStripMetadata,
                     metadataConfig:
-                      !v.config?.shouldPreserveMetadata &&
-                      v.config?.metadataConfig
+                      !v.config?.shouldStripMetadata && v.config?.metadataConfig
                         ? Object.entries(
-                            v.config?.metadataConfig as VideoMetadataConfig,
+                            v.config?.metadataConfig as MediaMetadataConfig,
                           ).reduce(
                             (a, [key, value]: [string, any]) => {
                               a[key] = value?.length > 0 ? value : null
@@ -215,7 +215,7 @@ function StartCompression() {
                     quality: v.config.isLossless
                       ? 100
                       : (v.config.quality ?? 100),
-                    stripMetadata: v.config.stripMetadata,
+                    stripMetadata: v.config.shouldStripMetadata,
                     svgScaleFactor: v.config.svgScaleFactor ?? null,
                     svgConfig: v.config?.shouldEnableAdvancedSvgSetting
                       ? (v.config.svgConfig ?? null)

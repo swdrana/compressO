@@ -1,7 +1,7 @@
 use crate::core::{
     domain::{
-        AudioConfig, BatchCompressionResult, MediaTransformHistory, SubtitlesConfig,
-        VideoCompressionConfig, VideoCompressionResult, VideoMetadataConfig, VideoThumbnail,
+        AudioConfig, BatchCompressionResult, MediaMetadataConfig, MediaTransformHistory,
+        SubtitlesConfig, VideoCompressionConfig, VideoCompressionResult, VideoThumbnail,
         VideoTrimSegment,
     },
     ffmpeg::{self},
@@ -22,10 +22,11 @@ pub async fn compress_video(
     fps: Option<&str>,
     video_codec: Option<&str>,
     transform_history: Option<MediaTransformHistory>,
-    metadata_config: Option<VideoMetadataConfig>,
+    metadata_config: Option<MediaMetadataConfig>,
     custom_thumbnail_path: Option<&str>,
     trim_segments: Option<Vec<VideoTrimSegment>>,
     subtitles_config: Option<SubtitlesConfig>,
+    strip_metadata: Option<bool>,
 ) -> Result<VideoCompressionResult, String> {
     let mut ffmpeg = ffmpeg::FFMPEG::new(&app)?;
     if let Ok(files) =
@@ -49,6 +50,7 @@ pub async fn compress_video(
             fps,
             video_codec,
             transform_history.as_ref(),
+            strip_metadata,
             metadata_config.as_ref(),
             custom_thumbnail_path,
             trim_segments.as_ref(),

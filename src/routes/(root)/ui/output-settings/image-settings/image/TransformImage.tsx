@@ -6,11 +6,11 @@ import Icon from '@/components/Icon'
 import Switch from '@/components/Switch'
 import { appProxy } from '@/routes/(root)/-state'
 
-type TransformImageProps = {
+type TransformProps = {
   mediaIndex: number
 }
 
-function TransformImage({ mediaIndex }: TransformImageProps) {
+function Transform({ mediaIndex }: TransformProps) {
   if (mediaIndex < 0) return
 
   const {
@@ -98,4 +98,4 @@ function TransformImage({ mediaIndex }: TransformImageProps) {
   )
 }
 
-export default TransformImage
+export default Transform

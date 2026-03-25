@@ -6,12 +6,12 @@ import Select from '@/components/Select'
 import { appProxy, normalizeBatchMediaConfig } from '@/routes/(root)/-state'
 import { extensions } from '@/types/compression'
 
-type ImageExtensionProps = {
+type ExtensionProps = {
   mediaIndex: number
   disabled?: boolean
 }
 
-const ImageExtension = ({ mediaIndex, disabled }: ImageExtensionProps) => {
+const Extension = ({ mediaIndex, disabled }: ExtensionProps) => {
   const {
     state: {
       media,
@@ -90,4 +90,4 @@ const ImageExtension = ({ mediaIndex, disabled }: ImageExtensionProps) => {
   )
 }
 
-export default ImageExtension
+export default Extension

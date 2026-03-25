@@ -1,4 +1,4 @@
-import { AudioConfig, SubtitlesConfig, VideoMetadataConfig } from './app'
+import { AudioConfig, MediaMetadataConfig, SubtitlesConfig } from './app'
 import { FileMetadata } from './fs'
 
 export const extensions = {
@@ -218,7 +218,8 @@ export type VideoCompressionConfig = {
   fps?: string | null
   videoCodec?: string | null
   transformHistory?: MediaTransformHistory[] | null
-  metadataConfig?: VideoMetadataConfig | null
+  stripMetadata?: boolean
+  metadataConfig?: MediaMetadataConfig | null
   customThumbnailPath?: string | null
   trimSegments?: VideoTrimSegment[] | null
   subtitlesConfig?: SubtitlesConfig | null

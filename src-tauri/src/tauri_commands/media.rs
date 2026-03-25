@@ -67,6 +67,7 @@ pub async fn compress_media_batch(
             let thumbnail_path = video_config.custom_thumbnail_path.as_deref();
             let trim_segments = video_config.trim_segments.as_ref();
             let subtitles_config = video_config.subtitles_config.as_ref();
+            let strip_metadata = video_config.strip_metadata;
 
             let mut ffmpeg_instance = FFMPEG::new(&app)
                 .map_err(|e| format!("Failed to create ffmpeg instance: {}", e))?;
@@ -84,6 +85,7 @@ pub async fn compress_media_batch(
                     fps,
                     video_codec,
                     transform_history,
+                    strip_metadata,
                     metadata_config,
                     thumbnail_path,
                     trim_segments,

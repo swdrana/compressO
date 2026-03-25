@@ -1,8 +1,8 @@
 use crate::core::domain::{
     AudioConfig, BatchCompressionResult, BatchVideoCompressionProgress,
-    BatchVideoIndividualCompressionResult, CustomEvents, MediaTransform, MediaTransformCrop,
-    MediaTransformHistory, SubtitlesConfig, VideoCompressionConfig, VideoCompressionProgress,
-    VideoCompressionResult, VideoMetadataConfig, VideoThumbnail, VideoTrimSegment,
+    BatchVideoIndividualCompressionResult, CustomEvents, MediaMetadataConfig, MediaTransform,
+    MediaTransformCrop, MediaTransformHistory, SubtitlesConfig, VideoCompressionConfig,
+    VideoCompressionProgress, VideoCompressionResult, VideoThumbnail, VideoTrimSegment,
 };
 use crate::core::ffprobe::FFPROBE;
 use crate::core::image::ImageCompressor;
@@ -62,7 +62,8 @@ impl FFMPEG {
         fps: Option<&str>,
         video_codec: Option<&str>,
         transform_history: Option<&MediaTransformHistory>,
-        metadata_config: Option<&VideoMetadataConfig>,
+        strip_metadata: Option<bool>,
+        metadata_config: Option<&MediaMetadataConfig>,
         custom_thumbnail_path: Option<&str>,
         trim_segments: Option<&Vec<VideoTrimSegment>>,
         subtitles_config: Option<&SubtitlesConfig>,
@@ -158,8 +159,12 @@ impl FFMPEG {
                 Vec::new()
             };
 
-        // Preserve existing metadata
-        cmd_args.extend_from_slice(&["-map_metadata", "0"]);
+        let should_strip_metadata = strip_metadata.unwrap_or(false);
+        if should_strip_metadata {
+            cmd_args.extend_from_slice(&["-map_metadata", "-1"]);
+        } else {
+            cmd_args.extend_from_slice(&["-map_metadata", "0"]);
+        }
 
         cmd_args.extend_from_slice(&[
             "-hide_banner",
@@ -503,7 +508,7 @@ impl FFMPEG {
 
         let mut metadata_args: Vec<String> = Vec::new();
 
-        if !is_gif_target {
+        if !is_gif_target && !should_strip_metadata {
             if let Some(metadata) = metadata_config {
                 if let Some(ref title) = metadata.title {
                     metadata_args.push("-metadata".to_string());
@@ -771,6 +776,7 @@ impl FFMPEG {
             let thumbnail_path = video_options.custom_thumbnail_path.as_deref();
             let trim_segments = video_options.trim_segments.as_ref();
             let subtitles_config = video_options.subtitles_config.as_ref();
+            let strip_metadata = video_options.strip_metadata;
 
             match ffmpeg_instance
                 .compress_video(
@@ -785,6 +791,7 @@ impl FFMPEG {
                     fps,
                     video_codec,
                     transform_history,
+                    strip_metadata,
                     metadata_config,
                     thumbnail_path,
                     trim_segments,
