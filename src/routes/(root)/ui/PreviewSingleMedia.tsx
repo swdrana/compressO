@@ -13,6 +13,7 @@ import { Ripple } from '@/ui/Patterns/Ripple'
 import { slideUpTransition, zoomInTransition } from '@/utils/animation'
 import { formatDuration } from '@/utils/string'
 import { cn } from '@/utils/tailwind'
+import ImageInfo from './ImageInfo'
 import MediaOutputCompareSlider from './MediaOutputCompareSlider'
 import MediaThumbnail from './MediaThumbnail'
 import styles from './styles.module.css'
@@ -223,12 +224,21 @@ function PreviewSingleMedia({ mediaIndex }: PreviewSingleMediaProps) {
           {...slideUpTransition}
         >
           <div className="2xl:max-w-[50vw] mx-auto">
-            <VideoInfo
-              mediaIndex={mediaIndex}
-              onClose={() => {
-                appProxy.state.showMediaInfo = false
-              }}
-            />
+            {mediaFile?.type === 'video' ? (
+              <VideoInfo
+                mediaIndex={mediaIndex}
+                onClose={() => {
+                  appProxy.state.showMediaInfo = false
+                }}
+              />
+            ) : mediaFile?.type === 'image' ? (
+              <ImageInfo
+                mediaIndex={mediaIndex}
+                onClose={() => {
+                  appProxy.state.showMediaInfo = false
+                }}
+              />
+            ) : null}
           </div>
           <div className="absolute top-4 right-4">
             <Button

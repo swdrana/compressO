@@ -959,7 +959,7 @@ impl ImageCompressor {
         Ok(())
     }
 
-    pub fn copy_image_metadata(
+    fn copy_image_metadata(
         &self,
         container: ImageContainer,
         src: &str,

@@ -449,3 +449,62 @@ pub enum MediaCompressionResult {
 pub struct MediaBatchCompressionResult {
     pub results: HashMap<String, MediaCompressionResult>,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageBasicInfo {
+    pub filename: String,
+    pub format: String,
+    pub format_long_name: String,
+    pub mime_type: String,
+    pub size: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageDimensions {
+    pub width: u32,
+    pub height: u32,
+    pub aspect_ratio: String,
+    pub orientation: Option<u32>,
+    pub dpi: Option<(u32, u32)>, // (x, y)
+    pub megapixels: f64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageColorInfo {
+    pub color_type: String,
+    pub bit_depth: u8,
+    pub has_alpha: bool,
+    pub color_space: Option<String>,
+    pub pixel_format: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ExifTag {
+    pub key: String,
+    pub value: String,
+    pub category: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ExifInfo {
+    pub tags: Vec<ExifTag>,
+    pub make: Option<String>,
+    pub model: Option<String>,
+    pub software: Option<String>,
+    pub date_time_original: Option<String>,
+    pub date_time_digitized: Option<String>,
+    pub copyright: Option<String>,
+    pub artist: Option<String>,
+    pub gps_coordinates: Option<(f64, f64)>, // (latitude, longitude)
+    pub lens_model: Option<String>,
+    pub iso: Option<u32>,
+    pub exposure_time: Option<String>,
+    pub f_number: Option<String>,
+    pub focal_length: Option<String>,
+    pub flash: Option<String>,
+}

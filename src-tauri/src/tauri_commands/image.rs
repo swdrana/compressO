@@ -1,8 +1,12 @@
 use std::path::PathBuf;
 
 use crate::core::{
-    domain::{ImageBatchCompressionResult, ImageCompressionConfig},
+    domain::{
+        ExifInfo, ImageBasicInfo, ImageBatchCompressionResult, ImageColorInfo,
+        ImageCompressionConfig, ImageDimensions,
+    },
     image,
+    image_info::ImageInfo,
 };
 use crate::sys::fs::delete_stale_files;
 
@@ -57,4 +61,24 @@ pub async fn convert_svg_to_png(
         Some(1.0),
     )?;
     Ok(output_path_str.to_string())
+}
+
+#[tauri::command]
+pub async fn get_image_basic_info(image_path: &str) -> Result<ImageBasicInfo, String> {
+    ImageInfo::get_basic_info(image_path)
+}
+
+#[tauri::command]
+pub async fn get_image_dimensions(image_path: &str) -> Result<ImageDimensions, String> {
+    ImageInfo::get_dimensions(image_path)
+}
+
+#[tauri::command]
+pub async fn get_image_color_info(image_path: &str) -> Result<ImageColorInfo, String> {
+    ImageInfo::get_color_info(image_path)
+}
+
+#[tauri::command]
+pub async fn get_exif_info(image_path: &str) -> Result<ExifInfo, String> {
+    ImageInfo::get_exif_info(image_path)
 }

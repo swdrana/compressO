@@ -55,6 +55,7 @@ function Root() {
   const handleMediaSelection = React.useCallback(
     async (path: string | string[]) => {
       if (appProxy.state.isCompressing) return
+
       const videoExtensions = Object.keys(extensions.video)
       const imageExtensions = Object.keys(extensions.image)
 

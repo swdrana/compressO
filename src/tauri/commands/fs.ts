@@ -41,6 +41,7 @@ export function copyFileToClipboard(filePath: string) {
 export function readFilesFromClipboard() {
   return core.invoke<string[]>('read_files_from_clipboard')
 }
+
 export function readFilesFromPaths(paths: string[]) {
   return core.invoke<string[]>('read_files_from_paths', { paths })
 }

@@ -289,3 +289,52 @@ export type BatchMediaIndividualCompressionResult = {
 export type MediaBatchCompressionResult = {
   results: Record<string, MediaCompressionResult>
 }
+
+export type ImageBasicInfo = {
+  filename: string
+  format: string
+  formatLongName: string
+  mimeType: string
+  size: number
+}
+
+export type ImageDimensions = {
+  width: number
+  height: number
+  aspectRatio: string
+  orientation: number | null
+  dpi: [number, number] | null
+  megapixels: number
+}
+
+export type ImageColorInfo = {
+  colorType: string
+  bitDepth: number
+  hasAlpha: boolean
+  colorSpace: string | null
+  pixelFormat: string
+}
+
+export type ExifTag = {
+  key: string
+  value: string
+  category: string
+}
+
+export type ExifInfo = {
+  tags: ExifTag[]
+  make: string | null
+  model: string | null
+  software: string | null
+  dateTimeOriginal: string | null
+  dateTimeDigitized: string | null
+  copyright: string | null
+  artist: string | null
+  gpsCoordinates: [number, number] | null
+  lensModel: string | null
+  iso: number | null
+  exposureTime: string | null
+  fNumber: string | null
+  focalLength: string | null
+  flash: string | null
+}

@@ -7,7 +7,11 @@ import {
   Chapter,
   ContainerInfo,
   compressionPresets,
+  ExifInfo,
   extensions,
+  ImageBasicInfo,
+  ImageColorInfo,
+  ImageDimensions,
   MediaTransformHistory,
   MediaTransforms,
   SubtitleStream,
@@ -180,6 +184,12 @@ export type Image = {
   config: ImageConfig
   isConfigDirty?: boolean
   dimensions?: { width: number; height: number }
+  imageInfoRaw?: {
+    basicInfo?: ImageBasicInfo
+    dimensions?: ImageDimensions
+    colorInfo?: ImageColorInfo
+    exifInfo?: ExifInfo
+  }
 }
 
 export type App = {

@@ -65,6 +65,10 @@ const TABS = {
     id: 'chapters',
     title: 'Chapters',
   },
+  metadata: {
+    id: 'metadata',
+    title: 'Metadata',
+  },
 } as const
 
 function VideoInfo({ mediaIndex, onClose }: VideoInfoProps) {
@@ -144,9 +148,18 @@ function VideoInfo({ mediaIndex, onClose }: VideoInfoProps) {
             }
             break
           }
+          case 'metadata': {
+            if (!video?.videoInfoRaw?.containerInfo) {
+              const data = await getContainerInfo(videoPathRaw)
+              if (data) {
+                video.videoInfoRaw.containerInfo = data
+              }
+            }
+            break
+          }
         }
       } catch {
-        toast.error('Failed to load video information')
+        //
       } finally {
         setLoading(false)
       }
@@ -221,6 +234,10 @@ function VideoInfo({ mediaIndex, onClose }: VideoInfoProps) {
             videoPath={videoPathRaw}
           />
         ) : null}
+
+        {!loading && tab === 'metadata' && videoInfoRaw?.containerInfo ? (
+          <MetadataDisplay info={videoInfoRaw?.containerInfo as any} />
+        ) : null}
       </ScrollShadow>
     </section>
   )
@@ -228,7 +245,7 @@ function VideoInfo({ mediaIndex, onClose }: VideoInfoProps) {
 
 function ContainerInfoDisplay({ info }: { info: ContainerInfo }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 select-text">
       {info.filename ? (
         <>
           <InfoItem
@@ -290,32 +307,41 @@ function ContainerInfoDisplay({ info }: { info: ContainerInfo }) {
           <Divider className="my-1" />
         </>
       ) : null}
+    </div>
+  )
+}
 
-      {info.tags && info.tags.length > 0 ? (
-        <div>
-          <InfoItem label="Metadata Tags" value=" " />
-          <div className="mt-2 space-y-2 mx-4">
-            {info.tags.map(([key, value]) => (
-              <div key={key}>
-                <p className="font-bold text-zinc-600 dark:text-zinc-400 text-[13px]">
-                  {startCase(key)}:
-                </p>{' '}
-                <span className="text-zinc-800 dark:text-zinc-200 allow-user-selection text-[13px]">
-                  {value ?? 'N/A'}
-                </span>
-                <Divider className="mt-2" />
-              </div>
-            ))}
+function MetadataDisplay({ info }: { info: ContainerInfo }) {
+  if (!info.tags || info.tags.length === 0) {
+    return (
+      <p className="text-center text-zinc-500 py-8 select-text">
+        No metadata found
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-4 select-text">
+      <div className="mt-2 space-y-2">
+        {info.tags.map(([key, value]) => (
+          <div key={key} className="select-text">
+            <p className="font-bold text-zinc-600 dark:text-zinc-400 text-[13px]">
+              {startCase(key)}:
+            </p>{' '}
+            <span className="text-zinc-800 dark:text-zinc-200 text-[13px]">
+              {value ?? 'N/A'}
+            </span>
+            <Divider className="mt-2" />
           </div>
-        </div>
-      ) : null}
+        ))}
+      </div>
     </div>
   )
 }
 
 function VideoStreamsDisplay({ streams }: { streams: VideoStream[] }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 select-text">
       {streams.map((stream, index) => (
         <motion.div
           key={index}
@@ -324,7 +350,7 @@ function VideoStreamsDisplay({ streams }: { streams: VideoStream[] }) {
           transition={{ delay: index * 0.05 }}
           className="space-y-4"
         >
-          <h3 className="text-lg font-semibold text-primary">
+          <h3 className="text-lg font-semibold text-primary select-text">
             Video Stream {streams.length > 1 ? `${index + 1}` : ''}
           </h3>
 
@@ -502,12 +528,14 @@ function VideoStreamsDisplay({ streams }: { streams: VideoStream[] }) {
 function AudioStreamsDisplay({ streams }: { streams: AudioStream[] }) {
   if (streams.length === 0) {
     return (
-      <p className="text-center text-zinc-500 py-8">No audio streams found</p>
+      <p className="text-center text-zinc-500 py-8 select-text">
+        No audio streams found
+      </p>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 select-text">
       {streams.map((stream, index) => (
         <motion.div
           key={index}
@@ -516,7 +544,7 @@ function AudioStreamsDisplay({ streams }: { streams: AudioStream[] }) {
           transition={{ delay: index * 0.05 }}
           className="space-y-4"
         >
-          <h3 className="text-lg font-semibold text-primary">
+          <h3 className="text-lg font-semibold text-primary select-text">
             Audio Stream {streams.length > 1 ? `${index + 1}` : ''}
           </h3>
 
@@ -595,7 +623,7 @@ function AudioStreamsDisplay({ streams }: { streams: AudioStream[] }) {
               <InfoItem label="Metadata Tags" value=" " />
               <div className="mt-2 space-y-2 mx-4">
                 {stream.tags.map(([key, value]) => (
-                  <div key={key}>
+                  <div key={key} className="select-text">
                     <span className="font-medium text-zinc-600 dark:text-zinc-400 text-[13px]">
                       {startCase(key)}:
                     </span>{' '}
@@ -648,7 +676,7 @@ function SubtitleStreamsDisplay({
 
   if (streams.length === 0) {
     return (
-      <p className="text-center text-zinc-500 py-8">
+      <p className="text-center text-zinc-500 py-8 select-text">
         No subtitle streams found
       </p>
     )
@@ -690,14 +718,14 @@ function SubtitleStreamsDisplay({
 
       toast.success(`Subtitle extracted and saved as ${format.toUpperCase()}.`)
     } catch {
-      toast.error('Failed to extract subtitle.')
+      //
     } finally {
       setDownloadingIndex(null)
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 select-text">
       {streams.map((stream, index) => {
         const isExtractable = isSubtitleExtractable(stream.codec)
         const formatConfig = SUBTITLE_FORMATS[selectedFormat]
@@ -710,7 +738,7 @@ function SubtitleStreamsDisplay({
             className="space-y-4"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-primary">
+              <h3 className="text-lg font-semibold text-primary select-text">
                 Subtitle Stream {index + 1}
               </h3>
               <ButtonGroup variant="flat" size="sm">
@@ -767,7 +795,7 @@ function SubtitleStreamsDisplay({
               value={`${stream.codec} (${stream.codecLongName})`}
             />
             {!isExtractable && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
+              <p className="text-xs text-amber-600 dark:text-amber-400 select-text">
                 ⚠️ This subtitle format ({stream.codec}) cannot be converted to
                 SRT. It is likely an image-based format (e.g., Blu-ray PGS or
                 DVD VobSub).
@@ -795,7 +823,7 @@ function SubtitleStreamsDisplay({
             stream.disposition.comment ||
             stream.disposition.karaoke ||
             stream.disposition.lyrics ? (
-              <div>
+              <div className="select-text">
                 <InfoItem label="Disposition" value=" " />
                 <div className="mt-2 space-y-1 ml-4">
                   {stream.disposition.default ? (
@@ -840,11 +868,15 @@ function SubtitleStreamsDisplay({
 
 function ChaptersDisplay({ chapters }: { chapters: Chapter[] }) {
   if (chapters.length === 0) {
-    return <p className="text-center text-zinc-500 py-8">No chapters found</p>
+    return (
+      <p className="text-center text-zinc-500 py-8 select-text">
+        No chapters found
+      </p>
+    )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 select-text">
       {chapters.map((chapter, index) => (
         <motion.div
           key={index}
@@ -852,7 +884,7 @@ function ChaptersDisplay({ chapters }: { chapters: Chapter[] }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.05 }}
         >
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between select-text">
             <h3 className="text-lg font-semibold text-primary">
               Chapter {index + 1} {chapter.id ? `(#${chapter.id})` : ''}
             </h3>
@@ -891,11 +923,11 @@ function ChaptersDisplay({ chapters }: { chapters: Chapter[] }) {
 
 function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between !select-text !before:select-text">
+    <div className="flex items-baseline justify-between select-text">
       <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
         {label}:
       </span>
-      <span className="text-[13px] text-zinc-800 dark:text-zinc-200 ml-2 allow-user-selection max-w-[75%] text-end">
+      <span className="text-[13px] text-zinc-800 dark:text-zinc-200 ml-2 max-w-[75%] text-end">
         {value || 'N/A'}
       </span>
     </div>
