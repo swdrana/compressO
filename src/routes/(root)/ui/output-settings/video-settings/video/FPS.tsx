@@ -1,6 +1,6 @@
 import { SelectItem } from '@heroui/react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Select from '@/components/Select'
@@ -9,7 +9,8 @@ import Switch from '@/components/Switch'
 import { slideDownTransition } from '@/utils/animation'
 import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
-const fps = [24, 25, 30, 50, 60] as const
+const FPS_LIST = [24, 25, 30, 50, 60] as const
+const DEFAULT_FPS = 30
 
 type VideoFPSProps = {
   mediaIndex: number
@@ -33,25 +34,29 @@ function FPS({ mediaIndex }: VideoFPSProps) {
   const { shouldEnableCustomFPS, customFPS, convertToExtension } =
     config ?? commonConfigForBatchCompression.videoConfig ?? {}
 
-  const isGifTarget = convertToExtension === 'gif'
-
   const handleSwitchToggle = useCallback(() => {
     if (
       mediaIndex >= 0 &&
       appProxy.state.media[mediaIndex].type === 'video' &&
       appProxy.state.media[mediaIndex]?.config
     ) {
-      appProxy.state.media[mediaIndex].config.shouldEnableCustomFPS =
-        !shouldEnableCustomFPS
+      const isEnabled =
+        appProxy.state.media[mediaIndex].config.shouldEnableCustomFPS
+      appProxy.state.media[mediaIndex].config.shouldEnableCustomFPS = !isEnabled
       appProxy.state.media[mediaIndex].isConfigDirty = true
+      if (!isEnabled && !appProxy.state.media[mediaIndex].config.customFPS) {
+        appProxy.state.media[mediaIndex].config.customFPS =
+          appProxy.state.media[mediaIndex].fps ?? DEFAULT_FPS
+      }
     } else {
       if (appProxy.state.media.length > 1) {
         appProxy.state.commonConfigForBatchCompression.videoConfig.shouldEnableCustomFPS =
-          !shouldEnableCustomFPS
+          !appProxy.state.commonConfigForBatchCompression.videoConfig
+            .shouldEnableCustomFPS
         normalizeBatchMediaConfig()
       }
     }
-  }, [mediaIndex, shouldEnableCustomFPS])
+  }, [mediaIndex])
 
   const handleValueChange = useCallback(
     (value: number) => {
@@ -73,13 +78,31 @@ function FPS({ mediaIndex }: VideoFPSProps) {
     [mediaIndex],
   )
 
+  const isGifTarget = convertToExtension === 'gif'
+
+  useEffect(() => {
+    if (!isGifTarget) {
+      if (mediaIndex >= 0) {
+        if (
+          appProxy.state.media[mediaIndex].type === 'video' &&
+          !FPS_LIST.includes(
+            appProxy.state.media[mediaIndex].config.customFPS as any,
+          )
+        ) {
+          appProxy.state.media[mediaIndex].config.customFPS =
+            appProxy.state.media[mediaIndex].fps ?? DEFAULT_FPS
+        }
+      }
+    }
+  }, [isGifTarget, mediaIndex])
+
   const shouldDisableInput =
     media.length === 0 ||
     isCompressing ||
     isProcessCompleted ||
     isLoadingMediaFiles
 
-  const initialFpsValue = customFPS ?? videoFps ?? 30
+  const initialFpsValue = customFPS ?? videoFps ?? DEFAULT_FPS
 
   return (
     <>
@@ -135,7 +158,7 @@ function FPS({ mediaIndex }: VideoFPSProps) {
                   label: '!text-gray-600 dark:!text-gray-400 text-xs',
                 }}
               >
-                {fps?.map((f) => (
+                {FPS_LIST?.map((f) => (
                   <SelectItem
                     key={String(f)}
                     textValue={String(f)}
