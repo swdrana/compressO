@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
+import { proxy, useSnapshot } from 'valtio'
+import { subscribeKey } from 'valtio/utils'
 
 type UseSyncStateOptions<T> = {
   globalValue: T | undefined
@@ -27,50 +29,73 @@ export function useSyncState<T>({
   defaultValue,
   debounceMs = 0,
 }: UseSyncStateOptions<T>) {
-  const [localValue, setLocalValue] = useState<T>(globalValue ?? defaultValue)
+  const stateProxy = useRef(
+    proxy<{ state: T }>({ state: globalValue ?? defaultValue }),
+  )
+  const { state: localValue } = useSnapshot(stateProxy.current)
 
-  const isUpdatingRef = useRef(false)
+  const isUpdatingRef = useRef<boolean>(false)
   const debounceTimerRef = useRef<NodeJS.Timeout>()
+  const setGlobalValueRef = useRef(setGlobalValue)
+
+  useEffect(() => {
+    setGlobalValueRef.current = setGlobalValue
+  }, [setGlobalValue])
 
   useEffect(() => {
     if (!isUpdatingRef.current && globalValue !== undefined) {
-      setLocalValue(globalValue)
+      stateProxy.current.state = globalValue
     }
   }, [globalValue])
 
   useEffect(() => {
-    if (debounceMs === 0) {
-      isUpdatingRef.current = true
-      setGlobalValue(localValue)
-      setTimeout(() => {
-        isUpdatingRef.current = false
-      }, 0)
-      return
+    let unsubscribe: () => void
+    if (stateProxy.current) {
+      unsubscribe = subscribeKey(
+        stateProxy.current,
+        'state',
+        (newLocalValue) => {
+          if (debounceMs === 0) {
+            isUpdatingRef.current = true
+            setGlobalValueRef.current(newLocalValue)
+            setTimeout(() => {
+              isUpdatingRef.current = false
+            }, 0)
+          } else {
+            if (debounceTimerRef.current) {
+              clearTimeout(debounceTimerRef.current)
+            }
+            debounceTimerRef.current = setTimeout(() => {
+              isUpdatingRef.current = true
+              setGlobalValueRef.current(newLocalValue)
+              setTimeout(() => {
+                isUpdatingRef.current = false
+              }, 0)
+            }, debounceMs)
+          }
+        },
+      )
     }
-
-    debounceTimerRef.current = setTimeout(() => {
-      isUpdatingRef.current = true
-      setGlobalValue(localValue)
-      setTimeout(() => {
-        isUpdatingRef.current = false
-      }, 0)
-    }, debounceMs)
-
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
+      unsubscribe?.()
+      clearTimeout(debounceTimerRef.current)
     }
-  }, [localValue, setGlobalValue, debounceMs])
+  }, [debounceMs])
 
-  const setValue = useCallback((value: T | ((prev: T) => T)) => {
-    setLocalValue((prev) => {
+  const setLocalValue = useCallback((value: T | ((prev: T) => T)) => {
+    if (stateProxy.current) {
       if (typeof value === 'function') {
-        return (value as (prev: T) => T)(prev)
+        const prev = stateProxy.current.state
+        const newVal = (value as (prev: T) => T)(prev)
+        stateProxy.current.state = newVal
+        return stateProxy.current.state
       }
-      return value
-    })
+
+      stateProxy.current.state = value
+      return stateProxy.current.state
+    }
+    return null
   }, [])
 
-  return [localValue, setValue] as const
+  return [localValue, setLocalValue] as const
 }

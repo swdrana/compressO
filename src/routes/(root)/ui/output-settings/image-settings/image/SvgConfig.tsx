@@ -154,12 +154,10 @@ function SvgConfig({ mediaIndex }: SvgConfigProps) {
     isProcessCompleted ||
     isLoadingMediaFiles
 
-  const showAdvancedSettings = shouldEnableAdvancedSvgSetting ?? false
-
   return (
     <div className="space-y-4">
       <Switch
-        isSelected={showAdvancedSettings}
+        isSelected={shouldEnableAdvancedSvgSetting}
         onValueChange={handleAdvancedSwitchSettingsToggle}
         isDisabled={shouldDisableInput}
       >
@@ -168,7 +166,7 @@ function SvgConfig({ mediaIndex }: SvgConfigProps) {
         </p>
       </Switch>
 
-      {showAdvancedSettings ? (
+      {shouldEnableAdvancedSvgSetting ? (
         <motion.div
           {...slideDownTransition}
           className="mb-2 p-3 bg-default-50 rounded-xl border border-default-200 dark:border-default-100"
