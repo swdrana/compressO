@@ -57,7 +57,7 @@ function CompressionActions() {
     <>
       <div className="w-fit flex justify-center items-center z-[10]">
         {isProcessCompleted ? (
-          <Tooltip content="Reset" aria-label="Reset">
+          <Tooltip content="Reconfigure" aria-label="Reset">
             <Button
               size="sm"
               onPress={handleReconfigure}

@@ -175,16 +175,11 @@ impl FFMPEG {
             "error",
         ]);
 
-        let mut cmd_args = match preset_name {
-            Some(preset) => match preset {
-                "thunderbolt" => cmd_args,
-                _ => {
-                    if is_gif_target {
-                        cmd_args.extend_from_slice(&[
-                            "-preset",
-                            "ultrafast", // Fastest encoding for temp file
-                        ]);
-                    } else {
+        let mut cmd_args = if !is_gif_target {
+            match preset_name {
+                Some(preset) => match preset {
+                    "thunderbolt" => cmd_args,
+                    _ => {
                         cmd_args.extend_from_slice(&[
                             "-pix_fmt:v:0",
                             "yuv420p",
@@ -195,12 +190,18 @@ impl FFMPEG {
                             "-preset",
                             "slow",
                         ]);
+                        cmd_args
                     }
-                    cmd_args
-                }
-            },
-            None => cmd_args,
+                },
+                None => cmd_args,
+            }
+        } else {
+            cmd_args.extend_from_slice(&["-preset", "ultrafast"]);
+            cmd_args
         };
+
+        let file_metadata = get_file_metadata(video_path).map_err(|err| err.to_string())?;
+        let original_extension = &file_metadata.extension;
 
         // Codec
         let output_codec: String = {
@@ -210,6 +211,18 @@ impl FFMPEG {
                     _ => "libx264".to_string(),
                 }
             }
+
+            /// Check if a codec is compatible with the target container format
+            fn is_codec_compatible(codec: &str, container: &str) -> bool {
+                match container {
+                    "webm" => {
+                        codec.contains("vp8") || codec.contains("vp9") || codec.contains("av1")
+                    }
+                    "mkv" => true,
+                    _ => codec.contains("264") || codec.contains("265") || codec.contains("av1"),
+                }
+            }
+
             if is_gif_target {
                 default_codec(convert_to_extension)
             } else if let Some(codec) = video_codec {
@@ -222,7 +235,20 @@ impl FFMPEG {
                     };
 
                     match source_streams.first() {
-                        Some(stream) => stream.codec.clone(),
+                        Some(stream) => {
+                            let source_codec = if stream.codec == "av1" {
+                                "libsvtav1".to_string() // libsvtav1 is faster than original av1
+                            } else {
+                                stream.codec.clone()
+                            };
+                            if original_extension == convert_to_extension
+                                || is_codec_compatible(&source_codec, convert_to_extension)
+                            {
+                                source_codec
+                            } else {
+                                default_codec(convert_to_extension)
+                            }
+                        }
                         None => default_codec(convert_to_extension),
                     }
                 } else {
@@ -244,8 +270,10 @@ impl FFMPEG {
                 format!("{default_crf}")
             }
         };
-        if preset_name.is_some() || (0..=100).contains(&quality) || is_gif_target {
+        if preset_name.is_some() && !is_gif_target {
             cmd_args.extend_from_slice(&["-crf", compression_quality.as_str()]);
+        } else {
+            cmd_args.extend_from_slice(&["-crf", "18"]);
         }
 
         // Build the post-processing chain for video (transforms + scale + pad)

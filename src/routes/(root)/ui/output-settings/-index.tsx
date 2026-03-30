@@ -1,13 +1,13 @@
 import { AccordionItem } from '@heroui/react'
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 import { useSnapshot } from 'valtio'
 
 import Accordion from '@/components/Accordion'
 import Icon from '@/components/Icon'
 import Title from '@/components/Title'
-import { appProxy } from '../../-state'
 import ImageSettings from './image-settings/-index'
 import VideoSettings from './video-settings/-index'
+import { appProxy } from '../../-state'
 
 type OutputSettingsProps = {
   mediaIndex: number
@@ -16,6 +16,12 @@ function OutputSettings({ mediaIndex }: OutputSettingsProps) {
   const {
     state: { activeTab, media, selectedMediaIndexForCustomization },
   } = useSnapshot(appProxy)
+
+  useEffect(() => {
+    if (media.length === 1) {
+      appProxy.state.activeTab = 'all'
+    }
+  }, [media.length])
 
   return (
     <div>

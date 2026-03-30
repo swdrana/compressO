@@ -3,8 +3,10 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect } from 'react'
 import { useSnapshot } from 'valtio'
 
+import Icon from '@/components/Icon'
 import Select from '@/components/Select'
 import Switch from '@/components/Switch'
+import Tooltip from '@/components/Tooltip'
 import { extensions } from '@/types/compression'
 import { slideDownTransition } from '@/utils/animation'
 import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
@@ -197,11 +199,23 @@ function VideoCodec({ mediaIndex }: VideoCodecProps) {
             >
               <SelectItem
                 key="-"
-                textValue="Same as input"
+                textValue="Default"
                 className="flex justify-center items-center"
+                endContent={
+                  <Tooltip
+                    content="Default codec for the selected container"
+                    aria-label="Default codec for the selected container"
+                  >
+                    <Icon
+                      name="info"
+                      className="inline-block ml-1 text-primary"
+                      size={15}
+                    />
+                  </Tooltip>
+                }
               >
                 <div className="flex flex-col">
-                  <span className="text-sm">Same as input</span>
+                  <span className="text-sm">Default</span>
                 </div>
               </SelectItem>
               <SelectSection>

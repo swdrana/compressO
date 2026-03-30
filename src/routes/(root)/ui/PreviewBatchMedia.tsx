@@ -411,6 +411,22 @@ function PreviewBatchMedia() {
                           >
                             <Icon name="cross" size={18} />
                           </Button>
+                          <Button
+                            size="sm"
+                            isIconOnly
+                            onPress={() => {
+                              appProxy.state.selectedMediaIndexForCustomization =
+                                originalIndex
+                            }}
+                            className={cn(
+                              'absolute bottom-2 left-2 z-10 rounded-full text-white hover:bg-zinc-700 transition-colors',
+                              mediaFile.isConfigDirty
+                                ? 'bg-primary'
+                                : 'bg-zinc-800/80',
+                            )}
+                          >
+                            <Icon name="pencil" size={20} />
+                          </Button>
                         </>
                       ) : null}
                       {isCompressing && currentMediaIndex === originalIndex ? (

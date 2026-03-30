@@ -11,7 +11,6 @@ import AudioTracks from './audio/AudioTracks'
 import AudioVolume from './audio/AudioVolume'
 import Others from './others/-index'
 import CompressionPreset from './video/CompressionPreset'
-import CompressionQuality from './video/CompressionQuality'
 import CustomThumbnail from './video/CustomThumbnail'
 import VideoDimensions from './video/Dimensions'
 import VideoExtension from './video/Extension'
@@ -105,10 +104,7 @@ function VideoSettings({ mediaIndex }: VideoSettingsProps) {
                 <VideoCodec mediaIndex={mediaIndex} />
                 <Divider className="my-3" />
               </>
-              <>
-                <CompressionQuality mediaIndex={mediaIndex} />
-                <Divider className="my-3" />
-              </>
+
               {mediaIndex >= 0 && dimensions ? (
                 <>
                   <VideoDimensions mediaIndex={mediaIndex} />

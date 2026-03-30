@@ -106,6 +106,9 @@ function StartCompression() {
                     presetName: !v.config?.shouldDisableCompression
                       ? v.config.presetName
                       : null,
+                    quality: !v.config?.shouldDisableCompression
+                      ? (v.config?.quality as number)
+                      : 101,
                     audioConfig: {
                       volume: v.config?.audioConfig?.volume ?? 100,
                       audioChannelConfig:
@@ -127,9 +130,6 @@ function StartCompression() {
                           ? (v.config?.selectedAudioTracks ?? null)
                           : null,
                     },
-                    quality: v.config?.shouldEnableQuality
-                      ? (v.config?.quality as number)
-                      : 101,
                     dimensions:
                       v.config?.shouldEnableCustomDimensions &&
                       v.config.customDimensions

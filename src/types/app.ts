@@ -59,7 +59,6 @@ export type VideoConfig = {
   presetName: keyof typeof compressionPresets
   shouldDisableCompression: boolean
   audioConfig: AudioConfig
-  shouldEnableQuality?: boolean
   quality?: number | null
   shouldEnableCustomDimensions?: boolean
   customDimensions?: [number, number]

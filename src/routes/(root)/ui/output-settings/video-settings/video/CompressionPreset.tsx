@@ -9,6 +9,7 @@ import Switch from '@/components/Switch'
 import Tooltip from '@/components/Tooltip'
 import { compressionPresets } from '@/types/compression'
 import { slideDownTransition } from '@/utils/animation'
+import CompressionQuality from './CompressionQuality'
 import { appProxy, normalizeBatchMediaConfig } from '../../../../-state'
 
 const PRESETS: {
@@ -91,14 +92,15 @@ function CompressionPreset({ mediaIndex }: CompressionPresetProps) {
     media.length === 0 ||
     isCompressing ||
     isProcessCompleted ||
-    isLoadingMediaFiles ||
-    convertToExtension === 'gif'
+    isLoadingMediaFiles
+
+  const isLossless = shouldDisableCompression
 
   return (
     <>
       <div className="flex items-center mb-4">
         <Switch
-          isSelected={!shouldDisableCompression}
+          isSelected={isLossless}
           onValueChange={handleSwitchToggle}
           className="flex justify-center items-center"
           isDisabled={shouldDisableInput}
@@ -106,13 +108,13 @@ function CompressionPreset({ mediaIndex }: CompressionPresetProps) {
         >
           <div className="flex justify-center items-center">
             <span className="text-gray-600 dark:text-gray-400 block mr-2 text-sm">
-              Compress
+              Lossless Compression
             </span>
           </div>
         </Switch>
       </div>
       <AnimatePresence mode="wait">
-        {!shouldDisableCompression ? (
+        {!isLossless ? (
           <motion.div {...slideDownTransition} className="mt-2">
             <div className="mt-8">
               <Select
@@ -127,7 +129,11 @@ function CompressionPreset({ mediaIndex }: CompressionPresetProps) {
                   handleValueChange(value)
                 }}
                 selectionMode="single"
-                isDisabled={shouldDisableCompression || shouldDisableInput}
+                isDisabled={
+                  shouldDisableCompression ||
+                  shouldDisableInput ||
+                  convertToExtension === 'gif'
+                }
                 classNames={{
                   label: '!text-gray-600 dark:!text-gray-400 text-xs',
                 }}
@@ -154,6 +160,9 @@ function CompressionPreset({ mediaIndex }: CompressionPresetProps) {
                   </SelectItem>
                 ))}
               </Select>
+            </div>
+            <div className="mt-2">
+              <CompressionQuality mediaIndex={mediaIndex} />
             </div>
           </motion.div>
         ) : null}
