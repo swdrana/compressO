@@ -10,7 +10,7 @@ import {
   type ModalHeaderProps as NextUIModalHeaderProps,
   type ModalProps as NextUIModalProps,
 } from '@heroui/react'
-import React from 'react'
+import React, { forwardRef } from 'react'
 
 import { BackdropBlurContent } from '@/ui/BackdropBlur'
 import { getPlatform } from '@/utils/fs'
@@ -22,17 +22,20 @@ const { isWindows, isMacOS } = getPlatform()
 interface ModalProps extends NextUIModalProps {
   motionVariant?: keyof typeof modalAnimationVariants
 }
-function Modal({ motionVariant, ...props }: ModalProps) {
-  return (
-    <NextUIModal
-      hideCloseButton
-      motionProps={{
-        variants: modalAnimationVariants?.[motionVariant ?? 'zoomIn'],
-      }}
-      {...props}
-    />
-  )
-}
+const Modal = forwardRef<HTMLDivElement, ModalProps>(
+  ({ motionVariant, ...props }, ref) => {
+    return (
+      <NextUIModal
+        ref={ref}
+        hideCloseButton
+        motionProps={{
+          variants: modalAnimationVariants?.[motionVariant ?? 'zoomIn'],
+        }}
+        {...props}
+      />
+    )
+  },
+)
 
 interface ModalHeaderProps extends NextUIModalHeaderProps {}
 export function ModalHeader(props: ModalHeaderProps) {

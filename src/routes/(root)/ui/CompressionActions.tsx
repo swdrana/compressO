@@ -15,7 +15,7 @@ function CompressionActions() {
     resetProxy,
   } = useSnapshot(appProxy)
 
-  const alertDiscloser = useDisclosure()
+  const alertDisclosure = useDisclosure()
 
   const handleDiscard = async ({
     closeModal,
@@ -43,7 +43,7 @@ function CompressionActions() {
   const handleCancelCompression = () => {
     const appSnapshot = snapshot(appProxy)
     if (appSnapshot.state.isProcessCompleted && !appSnapshot.state.isSaved) {
-      alertDiscloser.onOpen()
+      alertDisclosure.onOpen()
     } else {
       resetProxy()
     }
@@ -87,7 +87,7 @@ function CompressionActions() {
       </div>
       <AlertDialog
         title={`Media not saved`}
-        discloser={alertDiscloser}
+        disclosure={alertDisclosure}
         description={`Your compressed media${media.length > 1 ? 'are' : ' is'} not yet saved. Are you sure you want to discard it?`}
         renderFooter={({ closeModal }) => (
           <>

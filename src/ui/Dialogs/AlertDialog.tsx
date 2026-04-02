@@ -1,4 +1,4 @@
-import { ButtonProps, UseDisclosureProps } from '@heroui/react'
+import { ButtonProps, UseDisclosureProps, useDraggable } from '@heroui/react'
 import React from 'react'
 
 import Button from '@/components/Button'
@@ -19,7 +19,7 @@ type AlertDialogProps = {
   alertType?: AlertTypes
   title: React.ReactNode
   description: React.ReactNode
-  discloser: UseDisclosureProps
+  disclosure: UseDisclosureProps
   renderFooter?: (_: renderFooterArgs) => React.ReactNode
   renderIcon?: () => React.ReactNode
 }
@@ -31,16 +31,30 @@ const iconMapping: Record<AlertTypes, React.JSX.Element> = {
 
 function AlertDialog({
   alertType = 'warning',
-  discloser,
+  disclosure,
   title,
   description,
   renderFooter,
   renderIcon,
 }: AlertDialogProps) {
+  const targetRef = React.useRef(null)
+  const { moveProps } = useDraggable({
+    targetRef,
+    isDisabled: !disclosure.isOpen,
+  })
+
   return (
-    <Modal isOpen={discloser?.isOpen} onClose={discloser?.onClose}>
-      <ModalContent className="max-w-[20rem] pb-2 overflow-hidden rounded-2xl">
+    <Modal
+      ref={targetRef}
+      isOpen={disclosure?.isOpen}
+      onClose={disclosure?.onClose}
+    >
+      <ModalContent className="relative max-w-[20rem] pb-2 overflow-hidden rounded-2xl">
         <>
+          <div
+            className="absolute top-0 left-0 right-0 w-full h-5"
+            {...moveProps}
+          />
           <ModalHeader className="flex flex-col justify-center items-center pt-1 pb-1 mt-4">
             {renderIcon?.() ?? iconMapping?.[alertType] ?? null}
             {typeof title === 'string' ? (
@@ -59,7 +73,7 @@ function AlertDialog({
             )}
             <Divider className="my-4" />
             <ModalFooter className="px-6 py-1 pb-2">
-              {renderFooter?.({ closeModal: discloser.onClose })}
+              {renderFooter?.({ closeModal: disclosure.onClose })}
             </ModalFooter>
           </ModalBody>
         </>
