@@ -689,14 +689,12 @@ impl FFMPEG {
 
         if !is_gif_target {
             if has_existing_subtitles {
-                // Bitmap subtitle codecs that are not compatible with MP4/WebM
                 let bitmap_codecs = ["hdmv_pgs_subtitle", "dvd_subtitle", "xsub"];
 
                 for (idx, stream) in existing_subtitle_streams.iter().enumerate() {
                     let is_bitmap = bitmap_codecs.contains(&stream.codec.as_str());
                     let output_container = convert_to_extension;
 
-                    // Skip bitmap subtitles for non-MKV containers
                     if is_bitmap && output_container != "mkv" {
                         log::warn!(
                             "[ffmpeg] Skipping bitmap subtitle stream {} (codec: {}) - not compatible with {} container",
@@ -707,7 +705,6 @@ impl FFMPEG {
                         continue;
                     }
 
-                    // Skip ALL subtitles for AVI container (poor subtitle support)
                     if output_container == "avi" {
                         log::warn!("[ffmpeg] Skipping subtitle stream {} (codec: {}) - AVI container has limited subtitle support", idx, stream.codec);
                         continue;
@@ -716,7 +713,6 @@ impl FFMPEG {
                     subtitle_args_owned.push("-map".to_string());
                     subtitle_args_owned.push(format!("0:s:{}", idx));
 
-                    // Smart codec selection based on container and subtitle type
                     let subtitle_codec = match output_container {
                         "mkv" if is_bitmap => "copy",
                         "mkv" => "srt",
@@ -731,7 +727,6 @@ impl FFMPEG {
             }
 
             for (sub_input_idx, language) in subtitle_input_indices.iter() {
-                // Skip external subtitles for AVI container (poor subtitle support)
                 if convert_to_extension == "avi" {
                     log::warn!("[ffmpeg] Skipping external subtitle file - AVI container has limited subtitle support");
                     continue;
@@ -740,9 +735,8 @@ impl FFMPEG {
                 subtitle_args_owned.push("-map".to_string());
                 subtitle_args_owned.push(format!("{}:s", sub_input_idx));
 
-                // Smart codec selection for external subtitle files
                 let subtitle_codec = match convert_to_extension {
-                    "mkv" => "copy", // External subtitles are usually text-based, copy is safe
+                    "mkv" => "copy",
                     "webm" => "webvtt",
                     _ => "mov_text",
                 };
