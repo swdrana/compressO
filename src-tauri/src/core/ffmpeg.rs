@@ -131,7 +131,7 @@ impl FFMPEG {
             }
         }
 
-        let subtitle_input_indices: Vec<(usize, String)> = if !is_gif_target {
+        let subtitle_input_indices: Vec<(usize, String, Option<String>)> = if !is_gif_target {
             if let Some(subs_config) = subtitles_config {
                 if subs_config.should_enable_subtitles.unwrap_or(false) {
                     let mut indices = Vec::new();
@@ -144,7 +144,8 @@ impl FFMPEG {
                                 } else {
                                     sub.language.clone()
                                 };
-                                indices.push((input_index, lang));
+                                let title = sub.title.as_ref().map(|t| t.trim().to_string());
+                                indices.push((input_index, lang, title));
                                 input_index += 1;
                             }
                         }
@@ -722,11 +723,22 @@ impl FFMPEG {
 
                     subtitle_args_owned.push(format!("-c:s:{}", subtitle_index));
                     subtitle_args_owned.push(subtitle_codec.to_string());
+
+                    if let Some(ref lang) = stream.language {
+                        subtitle_args_owned.push(format!("-metadata:s:s:{}", subtitle_index));
+                        subtitle_args_owned.push(format!("language={}", lang));
+                    }
+
+                    if let Some(ref title) = stream.title {
+                        subtitle_args_owned.push(format!("-metadata:s:s:{}", subtitle_index));
+                        subtitle_args_owned.push(format!("title={}", title.trim()));
+                    }
+
                     subtitle_index += 1;
                 }
             }
 
-            for (sub_input_idx, language) in subtitle_input_indices.iter() {
+            for (sub_input_idx, language, title) in subtitle_input_indices.iter() {
                 if convert_to_extension == "avi" {
                     log::warn!("[ffmpeg] Skipping external subtitle file - AVI container has limited subtitle support");
                     continue;
@@ -747,6 +759,12 @@ impl FFMPEG {
                     subtitle_args_owned.push(format!("-metadata:s:s:{}", subtitle_index));
                     subtitle_args_owned.push(format!("language={}", language));
                 }
+
+                if let Some(ref t) = title {
+                    subtitle_args_owned.push(format!("-metadata:s:s:{}", subtitle_index));
+                    subtitle_args_owned.push(format!("title={}", t));
+                }
+
                 subtitle_index += 1;
             }
         }

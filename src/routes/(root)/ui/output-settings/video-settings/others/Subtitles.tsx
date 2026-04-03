@@ -291,6 +291,7 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
         const newSubtitle = {
           subtitlePath: filePath,
           language: 'eng',
+          title: 'English',
           fileName,
         }
         if (
@@ -377,6 +378,11 @@ function Subtitles({ mediaIndex }: SubtitlesProps) {
           appProxy.state.media[mediaIndex].config.subtitlesConfig!.subtitles[
             index
           ].language = languageValue
+          appProxy.state.media[mediaIndex].config.subtitlesConfig!.subtitles[
+            index
+          ].title =
+            LANGUAGE_OPTIONS.find((lang) => lang.code === languageCode)?.name ??
+            undefined
           appProxy.state.media[mediaIndex].isConfigDirty = true
         }
       } else {

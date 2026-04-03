@@ -197,6 +197,7 @@ function StartCompression() {
                                 subtitlePath: s.subtitlePath ?? null,
                                 language: s.language || 'eng',
                                 fileName: s.fileName ?? null,
+                                title: s.title,
                               })) ?? [],
                             shouldEnableSubtitles:
                               v.config.subtitlesConfig.shouldEnableSubtitles ??

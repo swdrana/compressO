@@ -172,6 +172,7 @@ pub struct MediaMetadataConfig {
 pub struct SubtitleConfig {
     pub subtitle_path: Option<String>,
     pub language: String,
+    pub title: Option<String>,
     pub file_name: Option<String>,
 }
 
