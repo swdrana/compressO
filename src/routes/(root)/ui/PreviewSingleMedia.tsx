@@ -266,7 +266,7 @@ function PreviewSingleMedia({ mediaIndex }: PreviewSingleMediaProps) {
         <div className="block xl:hidden">
           <Ripple
             mainCircleOpacity={0.18}
-            mainCircleSize={350}
+            mainCircleSize={300}
             className="absolute top-1/2 left-1/2 translate-x-[-50%] translate-y-[-50%]"
           />
         </div>
