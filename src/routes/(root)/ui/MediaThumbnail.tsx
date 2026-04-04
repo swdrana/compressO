@@ -23,7 +23,6 @@ import VideoTrimmerTimeline, {
   VideoTrimmerTimelineRef,
 } from '@/ui/VideoTrimmerTimeline'
 import { formatDuration } from '@/utils/string'
-import { getVideoUrl } from '@/utils/video'
 import MediaTransformer from './MediaTransformer'
 import { appProxy } from '../-state'
 
@@ -73,7 +72,6 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
   const [isThumbnailRegenerating, setIsThumbnailRegenerating] = useState(false)
   const thumbnailCacheRef = useRef<Record<string, string>>({})
   const [isCopyingFrame, setIsCopyingFrame] = useState(false)
-  const [videoUrl, setVideoUrl] = useState<string | null>(null)
 
   const handleCopyCurrentFrame = useCallback(async () => {
     const targetMedia = appProxy.state.media[mediaIndex]
@@ -236,29 +234,6 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
     }
   }, [mediaIndex])
 
-  // Convert video path to appropriate URL based on platform
-  useEffect(() => {
-    const updateVideoUrl = async () => {
-      if (!mediaPath) {
-        setVideoUrl(null)
-        return
-      }
-
-      const pathToUse =
-        isProcessCompleted && compressedFile ? compressedFile.path! : mediaPath!
-
-      try {
-        const url = await getVideoUrl(pathToUse)
-        setVideoUrl(url)
-      } catch {
-        // Fallback to using the path directly
-        setVideoUrl(pathToUse)
-      }
-    }
-
-    updateVideoUrl()
-  }, [mediaPath, compressedFile, isProcessCompleted])
-
   // biome-ignore lint/correctness/useExhaustiveDependencies: <Clear thumbnail cache when video changes>
   useEffect(() => {
     thumbnailCacheRef.current = {}
@@ -341,7 +316,11 @@ function MediaThumbnail({ mediaIndex }: MediaThumbnailProps) {
             >
               <VideoPlayer
                 ref={playerRef}
-                url={videoUrl ?? undefined}
+                url={
+                  isProcessCompleted && compressedFile
+                    ? compressedFile.path!
+                    : mediaPath!
+                }
                 enableTimelinePlayer={
                   !(
                     showTrimmerLayout ||

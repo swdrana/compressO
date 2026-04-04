@@ -1,17 +1,20 @@
 use axum::{
     body::Body,
     extract::{Query, Request},
-    http::{header, StatusCode},
+    http::{header, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     routing::get,
     Router,
 };
 use serde::Deserialize;
 use std::path::PathBuf;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio_util::io::ReaderStream;
+use tower_http::cors::Any;
+use tower_http::cors::CorsLayer;
 
 /// Query parameters for the video route
 #[derive(Debug, Deserialize)]
@@ -40,20 +43,28 @@ pub async fn start_server() -> Result<ServerState, Box<dyn std::error::Error>> {
 
     log::info!("Starting local video server on port {}", port);
 
+    // Configure CORS based on debug/release mode
+    let cors = configure_cors();
+
     let app = Router::new()
         .route("/video", get(serve_video))
-        .route("/ping", get(ping));
+        .route("/ping", get(ping))
+        .layer(cors);
+
+    // Create the server
+    let server = axum::serve(listener, app);
 
     // Spawn the server in the background
     tokio::spawn(async move {
-        // Create a graceful shutdown signal
-        let server_handle = axum::serve(listener, app);
+        log::info!("Video server is now accepting connections on port {}", port);
 
         // Wait for shutdown signal
         tokio::select! {
-            result = server_handle => {
+            result = server => {
                 if let Err(e) = result {
                     log::error!("Video server error: {:?}", e);
+                } else {
+                    log::info!("Video server shut down gracefully");
                 }
             }
             _ = shutdown_rx.recv() => {
@@ -61,6 +72,11 @@ pub async fn start_server() -> Result<ServerState, Box<dyn std::error::Error>> {
             }
         }
     });
+
+    // Give the server a moment to start accepting connections
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    log::info!("Video server started successfully on port {}", port);
 
     Ok(ServerState { port, shutdown_tx })
 }
@@ -161,7 +177,10 @@ async fn serve_video(
             return Ok((
                 StatusCode::PARTIAL_CONTENT,
                 [(header::CONTENT_TYPE, mime_type)],
-                [(header::CONTENT_RANGE, format!("bytes {}-{}/{}", start, end, file_len))],
+                [(
+                    header::CONTENT_RANGE,
+                    format!("bytes {}-{}/{}", start, end, file_len),
+                )],
                 [(header::CONTENT_LENGTH, content_length.to_string())],
                 [(header::ACCEPT_RANGES, "bytes")],
                 body,
@@ -233,4 +252,25 @@ fn mime_type_from_path(path: &PathBuf) -> &'static str {
             _ => "application/octet-stream",
         })
         .unwrap_or("application/octet-stream")
+}
+
+/// Configure CORS based on build type
+fn configure_cors() -> CorsLayer {
+    #[cfg(debug_assertions)]
+    {
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods([axum::http::Method::GET])
+            .allow_headers(Any)
+            .max_age(Duration::from_secs(3600))
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        CorsLayer::new()
+            .allow_origin("tauri://localhost".parse::<HeaderValue>().unwrap())
+            .allow_methods([axum::http::Method::GET])
+            .allow_headers(Any)
+            .max_age(Duration::from_secs(3600))
+    }
 }

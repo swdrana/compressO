@@ -3,31 +3,27 @@ import { invoke } from '@tauri-apps/api/core'
 import { getPlatform } from './fs'
 
 /**
- * Cache for the video server URL to avoid repeated Tauri invocations
- */
-let cachedServerUrl: string | null = null
-
-/**
  * Get the video server URL (Linux only)
  * On other platforms, this returns null
  */
-async function getVideoServerUrl(): Promise<string | null> {
-  const platform = getPlatform()
+export async function getServerUrl(): Promise<string | null> {
+  // TODO: Add back
+  // const platform = getPlatform()
 
-  // Only use the server on Linux
-  if (!platform.isLinux) {
-    return null
-  }
+  // // Only use the server on Linux
+  // if (!platform.isLinux) {
+  //   return null
+  // }
 
   // Return cached URL if available
-  if (cachedServerUrl) {
-    return cachedServerUrl
+  if (window.__serverUrl) {
+    return window.__serverUrl
   }
 
   try {
     // Call the Tauri command to get the server URL
     const serverUrl = await invoke<string>('get_video_server_url')
-    cachedServerUrl = serverUrl
+    window.__serverUrl = serverUrl
     return serverUrl
   } catch (error) {
     // biome-ignore lint/suspicious/noConsole: <>
@@ -48,9 +44,10 @@ async function getVideoServerUrl(): Promise<string | null> {
 export async function getVideoUrl(filePath: string): Promise<string> {
   const platform = getPlatform()
 
-  if (platform.isLinux) {
+  // TODO: Remove for MacOS
+  if (platform.isLinux || platform.isMacOS) {
     // Use the local HTTP server on Linux
-    const serverUrl = await getVideoServerUrl()
+    const serverUrl = await getServerUrl()
 
     if (!serverUrl) {
       // Fallback: if server isn't available, try using the path directly
@@ -75,12 +72,4 @@ export async function getVideoUrl(filePath: string): Promise<string> {
   // On macOS and Windows, return the path as-is
   // ReactPlayer and the browser will handle it correctly
   return filePath
-}
-
-/**
- * Clears the cached server URL
- * Call this if the server restarts
- */
-export function clearVideoServerCache(): void {
-  cachedServerUrl = null
 }

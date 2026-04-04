@@ -4,6 +4,8 @@ import ReactDOM from 'react-dom/client'
 import './global.css'
 
 import { routeTree } from './routeTree.gen'
+import { getPlatform } from './utils/fs'
+import { getServerUrl } from './utils/video'
 
 const router = createRouter({
   routeTree,
@@ -20,6 +22,15 @@ declare module '@tanstack/react-router' {
 if (typeof window !== 'undefined') {
   window.__appVersion = __appVersion
   window.__envMode = __envMode
+
+  const platform = getPlatform()
+  // TODO :Remove for mac
+  if (platform.isLinux || platform.isMacOS) {
+    try {
+      const serverUrl = await getServerUrl()
+      window.__serverUrl = serverUrl ?? null
+    } catch {}
+  }
 }
 
 const storedColor = localStorage.getItem('primaryColor')

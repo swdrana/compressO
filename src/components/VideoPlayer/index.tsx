@@ -14,6 +14,7 @@ import { BaseReactPlayerProps } from 'react-player/base'
 import { ClassNameValue } from 'tailwind-merge'
 
 import { cn } from '@/utils/tailwind'
+import { getVideoUrl } from '@/utils/video'
 import Button from '../Button'
 import Icon from '../Icon'
 import { BoundaryRowActionRender, ScaleRender } from '../Timeline'
@@ -60,6 +61,7 @@ const SEEK_DURATION = 3
 const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
   (
     {
+      url,
       playPauseOnSpaceKeydown,
       containerClassName,
       enableTimelinePlayer,
@@ -82,6 +84,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     forwardedRef,
   ) => {
     const id = useId()
+
+    const [videoUrl, setVideoUrl] = useState<typeof url | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [duration, setDuration] = useState<number | null>(null)
     const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -338,6 +342,27 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       }
     }, [isPlaying])
 
+    useEffect(() => {
+      // On platforms like Linux, native Webview does not support accessing local asset like video. We have to serve the video asset via a local server from the backend.
+      ;(async () => {
+        if (!url || typeof url !== 'string' || !url?.startsWith('asset://')) {
+          setVideoUrl(url)
+          return
+        }
+
+        try {
+          const uri = await getVideoUrl(url)
+          setVideoUrl(uri)
+        } catch {
+          setVideoUrl(url)
+        }
+      })()
+    }, [url])
+
+    // TODO: Remove this
+    // biome-ignore lint/suspicious/noConsole: <>
+    console.log('videoUrl', videoUrl)
+
     useImperativeHandle(
       forwardedRef,
       () =>
@@ -378,6 +403,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
         >
           <ReactPlayer
             ref={playerRef}
+            url={videoUrl!}
             controls
             width="100%"
             height="100%"

@@ -24,4 +24,7 @@ export default defineConfig(({ mode }) => ({
     __appVersion: JSON.stringify(packageJSON.version),
     __envMode: JSON.stringify(mode),
   },
+  build: {
+    target: 'es2022',
+  },
 }))
