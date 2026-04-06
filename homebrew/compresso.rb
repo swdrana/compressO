@@ -1,19 +1,19 @@
 # AUTO-GENERATED FILE. DO NOT EDIT!
 cask "compresso" do
-  version "2.1.1"
+  version "3.0.0"
 
   on_arm do
     url "https://github.com/codeforreal1/compressO/releases/download/#{version}/CompressO_#{version}_aarch64.dmg"
-    sha256 "8e87b4e8bcf783662f7f501fbc1bd13c74d8e14e4fd7005a8bbeea0fc4c2ceeb"
+    sha256 "5fe9e0b55d291328b13b867c817dd9339078f724339f01e57484972f4c088c3a"
   end
 
   on_intel do
     url "https://github.com/codeforreal1/compressO/releases/download/#{version}/CompressO_#{version}_x64.dmg"
-    sha256 "b6132991f9fd17241c38ed71fb71444e1278d2890f827c356a24376d73adfbb6"
+    sha256 "58c586817e38614bb7cf01ae13acb69ca60bb682156da8b99447165c2c6d3090"
   end
 
   name "CompressO"
-  desc "Compress any video file to a tiny size"
+  desc "Compress any video/image into a tiny size"
   homepage "https://github.com/codeforreal1/compressO"
 
   depends_on macos: ">= :ventura" # macOS 13

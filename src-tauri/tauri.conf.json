@@ -9,8 +9,8 @@
     "devUrl": "http://localhost:3001"
   },
   "bundle": {
-    "longDescription": "Compress any video file to a tiny size.",
-    "shortDescription": "Compress any video to a tiny size",
+    "longDescription": "Compress any video/image file to a tiny size.",
+    "shortDescription": "Compress any video/image to a tiny size",
     "active": true,
     "category": "Video",
     "copyright": "Code For Real",

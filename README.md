@@ -4,10 +4,10 @@
   </div>
 	<h1 align="center">CompressO</h1>
 	<p align="center">
-		Compress any video into a tiny size.
+		Compress any video/image into a tiny size.
     </p>
     <i align="center">
-		CompressO (🔉 pronounced like "Espresso" ) is a free and open-sourced cross-platform video compression app powered by FFmpeg.
+		CompressO (🔉 pronounced like "Espresso" ) is a free and open-sourced cross-platform video/image compression app.
     </i>
     <br />
     <p align="center">
