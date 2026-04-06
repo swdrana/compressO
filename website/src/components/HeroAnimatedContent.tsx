@@ -23,7 +23,19 @@ function HeroAnimatedContent() {
       <h1>
         <motion.span layoutId="item">Compress any </motion.span>
         <TextSlot
-          texts={['video', 'image']}
+          texts={[
+            'mp4',
+            'png',
+            'mov',
+            'jpg',
+            'avi',
+            'jpeg',
+            'mkv',
+            'webp',
+            'webm',
+            'gif',
+            'svg',
+          ]}
           mainClassName="inline-block md:min-w-[250px] mx-auto text-center flex justify-center"
           staggerFrom={'first'}
           initial={{ y: '100%' }}
