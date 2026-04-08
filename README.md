@@ -7,7 +7,7 @@
 		Compress any video/image into a tiny size.
     </p>
     <i align="center">
-		CompressO (🔉 pronounced like "Espresso" ) is a free and open-sourced cross-platform video/image compression app.
+		CompressO (🔉 pronounced like "Espresso" ) is a free and open-source video/image compression app.
     </i>
     <br />
     <p align="center">
