@@ -62,7 +62,7 @@ pub fn get_image_dimension(image_path: &str) -> Result<(u32, u32), String> {
         return Err(String::from("Image does not exist in the given path."));
     }
 
-    let image = match image::io::Reader::open(Path::new(image_path)) {
+    let image = match image::ImageReader::open(Path::new(image_path)) {
         Ok(reader) => reader,
         Err(err) => return Err(err.to_string()),
     };

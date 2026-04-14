@@ -109,12 +109,21 @@ function CompressionProgress() {
                     ) {
                       appProxy.state.media[
                         targetMediaIndex
-                      ].compressionProgress = clamp(
-                        (currentDurationInMilliseconds * 100) /
-                          videoDurationInMilliseconds,
-                        0,
-                        100,
-                      )
+                      ].compressionProgress = payload.mediaProgress.percentage
+                      appProxy.state.media[targetMediaIndex].activeEncoder =
+                        payload.mediaProgress.encoder
+                      appProxy.state.media[targetMediaIndex].compressionSpeed =
+                        payload.mediaProgress.speed
+                      appProxy.state.media[targetMediaIndex].compressionFps =
+                        payload.mediaProgress.fps
+                      appProxy.state.media[
+                        targetMediaIndex
+                      ].compressionTimeRemaining =
+                        payload.mediaProgress.timeRemaining
+                      appProxy.state.media[
+                        targetMediaIndex
+                      ].compressionTimeElapsed =
+                        payload.mediaProgress.timeElapsed
 
                       updateDockProgress()
                     }
@@ -124,6 +133,8 @@ function CompressionProgress() {
                   ) {
                     appProxy.state.media[targetMediaIndex].compressionProgress =
                       clamp(payload.mediaProgress.progress, 0, 100)
+                    appProxy.state.media[targetMediaIndex].activeEncoder =
+                      payload.mediaProgress.progress < 100 ? 'Processing' : ''
 
                     updateDockProgress()
                   }

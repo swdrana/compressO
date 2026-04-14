@@ -14,11 +14,11 @@ use nanoid::nanoid;
 use regex::Regex;
 use std::{
     path::{Path, PathBuf},
-    process::Command,
     sync::Arc,
 };
 use tauri::{AppHandle, Emitter, Listener, Manager};
 use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::Command;
 
 pub struct FFMPEG {
     app: AppHandle,
@@ -49,6 +49,258 @@ impl FFMPEG {
             .map_err(|e| format!("Failed to create ffmpeg command: {}", e))
     }
 
+    fn preferred_gpu_h264_encoders() -> &'static [&'static str] {
+        if cfg!(target_os = "macos") {
+            &["h264_videotoolbox"]
+        } else if cfg!(any(target_os = "windows", target_os = "linux")) {
+            &["h264_nvenc", "h264_amf", "h264_qsv"]
+        } else {
+            &[]
+        }
+    }
+
+    fn preferred_gpu_hevc_encoders() -> &'static [&'static str] {
+        if cfg!(target_os = "macos") {
+            &["hevc_videotoolbox"]
+        } else if cfg!(any(target_os = "windows", target_os = "linux")) {
+            &["hevc_nvenc", "hevc_amf", "hevc_qsv"]
+        } else {
+            &[]
+        }
+    }
+
+    fn is_supported_h264_encoder(codec: &str) -> bool {
+        matches!(
+            codec,
+            "libx264"
+                | "h264_videotoolbox"
+                | "h264_nvenc"
+                | "h264_amf"
+                | "h264_qsv"
+        )
+    }
+
+    fn is_supported_hevc_encoder(codec: &str) -> bool {
+        matches!(
+            codec,
+            "libx265"
+                | "hevc_videotoolbox"
+                | "hevc_nvenc"
+                | "hevc_amf"
+                | "hevc_qsv"
+        )
+    }
+
+    fn map_quality_inverse(quality: u16, min: u16, max: u16, default_value: u16) -> u16 {
+        if (0..=100).contains(&quality) {
+            let range = max.saturating_sub(min);
+            min + (range - (range * quality) / 100)
+        } else {
+            default_value
+        }
+    }
+
+    fn map_quality_linear(quality: u16, min: u16, max: u16, default_value: u16) -> u16 {
+        if (0..=100).contains(&quality) {
+            let range = max.saturating_sub(min);
+            min + (range * quality) / 100
+        } else {
+            default_value
+        }
+    }
+
+    async fn probe_encoder(&self, encoder: &str) -> bool {
+        let ffmpeg_cmd = match self.get_ffmpeg_command() {
+            Ok(cmd) => cmd,
+            Err(err) => {
+                log::warn!("[ffmpeg] failed to create ffmpeg command: {}", err);
+                return false;
+            }
+        };
+
+        match ffmpeg_cmd
+            .args([
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=black:s=128x128:d=0.5",
+                "-c:v",
+                encoder,
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .await
+        {
+            Ok(output) => output.status.success(),
+            Err(err) => {
+                log::warn!("[ffmpeg] encoder probe failed for {}: {}", encoder, err);
+                false
+            }
+        }
+    }
+
+    async fn select_h264_encoder(&self, requested_codec: Option<&str>) -> String {
+        if let Some(codec) = requested_codec {
+            if Self::is_supported_h264_encoder(codec) {
+                if codec == "libx264" || self.probe_encoder(codec).await {
+                    return codec.to_string();
+                }
+                log::warn!(
+                    "[ffmpeg] requested encoder {} is unavailable, falling back",
+                    codec
+                );
+                return "libx264".to_string();
+            }
+            log::warn!(
+                "[ffmpeg] unsupported requested video codec {}. forcing H.264 path",
+                codec
+            );
+        }
+
+        for encoder in Self::preferred_gpu_h264_encoders() {
+            if self.probe_encoder(encoder).await {
+                return (*encoder).to_string();
+            }
+        }
+
+        "libx264".to_string()
+    }
+
+    async fn select_hevc_encoder(&self, requested_codec: Option<&str>) -> String {
+        if let Some(codec) = requested_codec {
+            if Self::is_supported_hevc_encoder(codec) {
+                if codec == "libx265" || self.probe_encoder(codec).await {
+                    return codec.to_string();
+                }
+                log::warn!(
+                    "[ffmpeg] requested encoder {} is unavailable, falling back",
+                    codec
+                );
+                return "libx265".to_string();
+            }
+        }
+
+        for encoder in Self::preferred_gpu_hevc_encoders() {
+            if self.probe_encoder(encoder).await {
+                return (*encoder).to_string();
+            }
+        }
+
+        "libx265".to_string()
+    }
+
+    fn build_video_encoder_args(
+        &self,
+        encoder: &str,
+        quality: u16,
+        preset_name: Option<&str>,
+        is_gif_target: bool,
+    ) -> Vec<String> {
+        let mut args = vec!["-c:v:0".to_string(), encoder.to_string()];
+
+        match encoder {
+            "libx264" => {
+                let crf = Self::map_quality_inverse(quality, 24, 36, 28);
+                args.extend([
+                    "-preset".to_string(),
+                    "slow".to_string(),
+                    "-crf".to_string(),
+                    crf.to_string(),
+                ]);
+            }
+            "h264_videotoolbox" => {
+                let qv = Self::map_quality_linear(quality, 40, 85, 60);
+                args.extend([
+                    "-q:v".to_string(),
+                    qv.to_string(),
+                    "-profile:v".to_string(),
+                    "high".to_string(),
+                ]);
+            }
+            "h264_nvenc" => {
+                let cq = Self::map_quality_inverse(quality, 18, 34, 24);
+                args.extend([
+                    "-preset".to_string(),
+                    "p6".to_string(),
+                    "-tune".to_string(),
+                    "hq".to_string(),
+                    "-rc".to_string(),
+                    "vbr".to_string(),
+                    "-cq".to_string(),
+                    cq.to_string(),
+                ]);
+            }
+            "h264_qsv" => {
+                let global_quality = Self::map_quality_inverse(quality, 18, 34, 24);
+                args.extend([
+                    "-preset".to_string(),
+                    "slow".to_string(),
+                    "-global_quality".to_string(),
+                    global_quality.to_string(),
+                ]);
+            }
+            "h264_amf" | "hevc_amf" => {
+                args.extend([
+                    "-quality".to_string(),
+                    "quality".to_string(),
+                    "-usage".to_string(),
+                    "transcoding".to_string(),
+                    "-rc".to_string(),
+                    "cqp".to_string(),
+                ]);
+            }
+            "hevc_videotoolbox" => {
+                let qv = Self::map_quality_linear(quality, 40, 85, 60);
+                args.extend([
+                    "-q:v".to_string(),
+                    qv.to_string(),
+                    "-profile:v".to_string(),
+                    "main".to_string(),
+                ]);
+            }
+            "hevc_nvenc" => {
+                let cq = Self::map_quality_inverse(quality, 18, 34, 24);
+                args.extend([
+                    "-preset".to_string(),
+                    "p6".to_string(),
+                    "-tune".to_string(),
+                    "hq".to_string(),
+                    "-rc".to_string(),
+                    "vbr".to_string(),
+                    "-cq".to_string(),
+                    cq.to_string(),
+                ]);
+            }
+            "hevc_qsv" => {
+                let global_quality = Self::map_quality_inverse(quality, 18, 34, 24);
+                args.extend([
+                    "-preset".to_string(),
+                    "slow".to_string(),
+                    "-global_quality".to_string(),
+                    global_quality.to_string(),
+                ]);
+            }
+            "libvpx-vp9" => {
+                let crf = if preset_name.is_some() && !is_gif_target {
+                    Self::map_quality_inverse(quality, 24, 36, 28)
+                } else {
+                    18
+                };
+                args.extend(["-crf".to_string(), crf.to_string()]);
+            }
+            _ => {
+                let crf = Self::map_quality_inverse(quality, 24, 36, 28);
+                args.extend(["-crf".to_string(), crf.to_string()]);
+            }
+        }
+
+        args
+    }
+
     /// Compresses a video from a path
     pub async fn compress_video(
         &mut self,
@@ -74,10 +326,13 @@ impl FFMPEG {
             return Err(String::from("Invalid convert to extension."));
         }
 
-        let audio_streams = {
+        let (audio_streams, video_duration_opt) = {
             let mut ffprobe = FFPROBE::new(&self.app)?;
-            ffprobe.get_audio_streams(video_path).await?
+            let audio = ffprobe.get_audio_streams(video_path).await?;
+            let basic_info = ffprobe.get_video_basic_info(video_path).await?;
+            (audio, basic_info.duration)
         };
+        let video_duration = video_duration_opt; // Keep it as Option<f64>
         let has_audio_stream = !audio_streams.is_empty();
 
         let (existing_subtitle_count, existing_subtitle_streams): (usize, Vec<SubtitleStream>) = {
@@ -115,6 +370,13 @@ impl FFMPEG {
             .collect();
 
         let mut cmd_args: Vec<&str> = Vec::new();
+
+        // Hardware Acceleration for decoding
+        if cfg!(target_os = "macos") {
+            cmd_args.extend_from_slice(&["-hwaccel", "videotoolbox"]);
+        } else if cfg!(target_os = "windows") {
+            cmd_args.extend_from_slice(&["-hwaccel", "auto"]);
+        }
 
         cmd_args.push("-i");
         cmd_args.push(video_path);
@@ -189,8 +451,6 @@ impl FFMPEG {
                             "0",
                             "-movflags",
                             "+faststart",
-                            "-preset",
-                            "slow",
                         ]);
                         cmd_args
                     }
@@ -198,85 +458,20 @@ impl FFMPEG {
                 None => cmd_args,
             }
         } else {
-            cmd_args.extend_from_slice(&["-preset", "ultrafast"]);
             cmd_args
         };
 
-        let file_metadata = get_file_metadata(video_path).map_err(|err| err.to_string())?;
-        let original_extension = &file_metadata.extension;
-
-        // Codec
-        let output_codec: String = {
-            fn default_codec(convert_to_extension: &str) -> String {
-                match convert_to_extension {
-                    "webm" => "libvpx-vp9".to_string(),
-                    _ => "libx264".to_string(),
-                }
-            }
-
-            /// Check if a codec is compatible with the target container format
-            fn is_codec_compatible(codec: &str, container: &str) -> bool {
-                match container {
-                    "webm" => {
-                        codec.contains("vp8") || codec.contains("vp9") || codec.contains("av1")
-                    }
-                    "mkv" => true,
-                    _ => codec.contains("264") || codec.contains("265") || codec.contains("av1"),
-                }
-            }
-
-            if is_gif_target {
-                default_codec(convert_to_extension)
-            } else if let Some(codec) = video_codec {
-                codec.to_string()
+        let selected_video_encoder = if convert_to_extension == "webm" {
+            "libvpx-vp9".to_string()
+        } else if let Some(codec) = video_codec {
+            if codec == "libx265" || codec.contains("hevc") {
+                self.select_hevc_encoder(video_codec).await
             } else {
-                if preset_name.is_none() {
-                    let source_streams = {
-                        let mut ffprobe = FFPROBE::new(&self.app)?;
-                        ffprobe.get_video_streams(video_path).await?
-                    };
-
-                    match source_streams.first() {
-                        Some(stream) => {
-                            let source_codec = if stream.codec == "av1" {
-                                "libsvtav1".to_string() // libsvtav1 is faster than original av1
-                            } else {
-                                stream.codec.clone()
-                            };
-                            if original_extension == convert_to_extension
-                                || is_codec_compatible(&source_codec, convert_to_extension)
-                            {
-                                source_codec
-                            } else {
-                                default_codec(convert_to_extension)
-                            }
-                        }
-                        None => default_codec(convert_to_extension),
-                    }
-                } else {
-                    default_codec(convert_to_extension)
-                }
+                self.select_h264_encoder(video_codec).await
             }
-        };
-        cmd_args.extend_from_slice(&["-c:v:0", output_codec.as_str()]);
-
-        // Quality
-        let compression_quality: String = {
-            let default_crf: u16 = 28;
-            let max_crf: u16 = 36;
-            let min_crf: u16 = 24;
-            if (0..=100).contains(&quality) {
-                let diff = (max_crf - min_crf) - ((max_crf - min_crf) * quality) / 100;
-                format!("{}", min_crf + diff)
-            } else {
-                format!("{default_crf}")
-            }
-        };
-        if preset_name.is_some() && !is_gif_target {
-            cmd_args.extend_from_slice(&["-crf", compression_quality.as_str()]);
         } else {
-            cmd_args.extend_from_slice(&["-crf", "18"]);
-        }
+            self.select_h264_encoder(video_codec).await
+        };
 
         // Build the post-processing chain for video (transforms + scale + pad)
         let video_post_process = build_ffmpeg_filters(transform_history, dimensions);
@@ -786,12 +981,8 @@ impl FFMPEG {
         }
 
         let output_path = output_file.display().to_string();
-        cmd_args.extend_from_slice(&["-y", &output_path]);
-
-        log::info!("[ffmpeg] final command{:?}", cmd_args);
-
-        let mut ffmpeg_cmd = self.get_ffmpeg_command()?;
-        ffmpeg_cmd.args(cmd_args);
+        let common_args_owned: Vec<String> =
+            cmd_args.iter().map(|arg| arg.to_string()).collect();
 
         let output_file_clone = output_file.clone();
         let cancel_callback: CancelCallback = Arc::new(move || {
@@ -799,46 +990,156 @@ impl FFMPEG {
             log::info!("Cleaned up partial output file: {:?}", output_file_clone);
         });
 
-        let app_clone = self.app.clone();
-        let video_id_for_progress = video_id.to_string();
-        let batch_id_for_progress = batch_id.clone();
-        let re = Regex::new(r"out_time=(?P<out_time>.*?)\n").unwrap();
 
-        let stdout_callback = Arc::new(move |_process_index: usize, stdout_line: String| {
-            if let Some(cap) = re.captures(&stdout_line) {
-                if let Some(out_time) = cap.name("out_time") {
-                    let duration = out_time.as_str();
-                    if !duration.is_empty() {
-                        let video_progress = VideoCompressionProgress {
-                            video_id: video_id_for_progress.clone(),
-                            batch_id: batch_id_for_progress.clone(),
-                            current_duration: duration.to_string(),
-                        };
-                        if let Some(window) = app_clone.get_webview_window("main") {
-                            window
-                                .emit(
-                                    CustomEvents::VideoCompressionProgress.as_ref(),
-                                    video_progress,
-                                )
-                                .ok();
-                        }
+        let mut encoders_to_try = vec![selected_video_encoder.clone()];
+        if convert_to_extension != "webm" {
+            if selected_video_encoder.contains("hevc") && selected_video_encoder != "libx265" {
+                encoders_to_try.push("libx265".to_string());
+            } else if selected_video_encoder != "libx264" && !selected_video_encoder.contains("hevc")
+            {
+                encoders_to_try.push("libx264".to_string());
+            }
+        }
+
+        let mut compressed = false;
+        let start_time = std::time::Instant::now();
+
+        for (attempt_index, encoder_name) in encoders_to_try.iter().enumerate() {
+            let encoder_name_for_cb = encoder_name.clone();
+            let app_clone = self.app.clone();
+            let video_id_for_progress = video_id.to_string();
+            let batch_id_for_progress = batch_id.clone();
+            
+            let re_time = Regex::new(r"out_time=([^\n\s\r]+)").unwrap();
+            let re_fps = Regex::new(r"fps=([^\n\s\r]+)").unwrap();
+            let re_speed = Regex::new(r"speed=([^\n\s\r]+)").unwrap();
+
+            let total_duration_secs = video_duration.unwrap_or(0.0);
+            println!("\n----------------------");
+            println!("Processing attempt: {}", attempt_index + 1);
+            println!("Encoder: {}", encoder_name);
+            if encoder_name.contains("videotoolbox") {
+                println!("GPU ACCELERATION: ACTIVE (VideoToolbox)");
+            } else {
+                println!("GPU ACCELERATION: INACTIVE (Software Fallback)");
+            }
+            println!("----------------------\n");
+            
+            let stdout_callback = Arc::new(move |_process_index: usize, stdout_line: String| {
+                let mut current_time_str = String::new();
+                let mut current_fps = 0.0f32;
+                let mut current_speed_str = String::from("0x");
+
+                if let Some(cap) = re_time.captures(&stdout_line) {
+                    current_time_str = cap.get(1).map_or("", |m| m.as_str()).to_string();
+                }
+                if let Some(cap) = re_fps.captures(&stdout_line) {
+                    current_fps = cap.get(1).map_or("0.0", |m| m.as_str()).trim().parse().unwrap_or(0.0);
+                }
+                if let Some(cap) = re_speed.captures(&stdout_line) {
+                    current_speed_str = cap.get(1).map_or("0x", |m| m.as_str()).to_string();
+                }
+
+                if !current_time_str.is_empty() && (current_time_str.contains(':') || current_time_str.parse::<f64>().is_ok()) {
+                    let elapsed_playback_secs = utils::duration::convert_duration_to_seconds(&current_time_str);
+                    let percentage = if total_duration_secs > 0.0 {
+                        (elapsed_playback_secs / total_duration_secs * 100.0).min(100.0)
+                    } else {
+                        0.0
+                    };
+
+                    let speed_val: f32 = current_speed_str.trim_end_matches('x').trim().parse().unwrap_or(0.0);
+                    let time_remaining = if speed_val > 0.01 && total_duration_secs > elapsed_playback_secs {
+                        let remaining_secs = (total_duration_secs - elapsed_playback_secs) / (speed_val as f64);
+                        utils::duration::format_seconds_to_duration(remaining_secs as u64)
+                    } else {
+                        "Calculating...".to_string()
+                    };
+
+                    let wall_clock_elapsed = start_time.elapsed().as_secs();
+                    let time_elapsed = utils::duration::format_seconds_to_duration(wall_clock_elapsed);
+
+                    let video_progress = VideoCompressionProgress {
+                        video_id: video_id_for_progress.clone(),
+                        batch_id: batch_id_for_progress.clone(),
+                        current_duration: current_time_str,
+                        encoder: encoder_name_for_cb.clone(),
+                        speed: current_speed_str,
+                        fps: current_fps,
+                        percentage: percentage as f32,
+                        time_remaining,
+                        time_elapsed,
+                    };
+
+                    if let Some(window) = app_clone.get_webview_window("main") {
+                        window.emit(CustomEvents::VideoCompressionProgress.as_ref(), video_progress).ok();
+                    }
+                }
+            });
+
+            let mut final_args_owned = common_args_owned.clone();
+            final_args_owned.extend(self.build_video_encoder_args(
+                &encoder_name,
+                quality,
+                preset_name,
+                is_gif_target,
+            ));
+            final_args_owned.extend(["-y".to_string(), output_path.clone()]);
+
+            log::info!(
+                "[ffmpeg] compress attempt {} using encoder {}",
+                attempt_index + 1,
+                encoder_name
+            );
+            let ffmpeg_cmd = self.get_ffmpeg_command()?;
+            let ffmpeg_cmd = ffmpeg_cmd.args(final_args_owned.iter().map(|arg| arg.as_str()));
+
+            println!("--- [FFMPEG START] ---");
+            println!("Encoder: {}", encoder_name);
+            println!("Hardware Acceleration: VideoToolbox enabled");
+            println!("Command: {:?}", final_args_owned);
+            println!("----------------------");
+
+            let executor = MediaProcessExecutorBuilder::new(self.app.clone())
+                .command(ffmpeg_cmd.into())
+                .with_cancel_support(
+                    vec![video_id.to_string(), batch_id.clone()],
+                    Some(cancel_callback.clone()),
+                )
+                .with_stdout_callback(stdout_callback)
+                .build()?;
+
+            match executor.spawn_and_wait().await {
+                Ok(result) if result.success() => {
+                    compressed = true;
+                    break;
+                }
+                Ok(_) => {
+                    let _ = std::fs::remove_file(&output_path);
+                    if attempt_index + 1 < encoders_to_try.len() {
+                        log::warn!(
+                            "[ffmpeg] encoder {} failed, retrying with fallback",
+                            encoder_name
+                        );
+                    }
+                }
+                Err(err) => {
+                    if err == "CANCELLED" {
+                        return Err(err);
+                    }
+                    let _ = std::fs::remove_file(&output_path);
+                    if attempt_index + 1 < encoders_to_try.len() {
+                        log::warn!(
+                            "[ffmpeg] encoder {} returned error: {}. retrying with fallback",
+                            encoder_name,
+                            err
+                        );
                     }
                 }
             }
-        });
+        }
 
-        let executor = MediaProcessExecutorBuilder::new(self.app.clone())
-            .command(ffmpeg_cmd)
-            .with_cancel_support(
-                vec![video_id.to_string(), batch_id.clone()],
-                Some(cancel_callback),
-            )
-            .with_stdout_callback(stdout_callback)
-            .build()?;
-
-        let result = executor.spawn_and_wait().await?;
-
-        if !result.success() {
+        if !compressed {
             return Err("Video compression failed".to_string());
         }
 
@@ -1013,26 +1314,25 @@ impl FFMPEG {
             .iter()
             .collect();
 
-        let timestamp_value = timestamp.unwrap_or("00:00:01.00");
+        let timestamp_str = timestamp.unwrap_or("00:00:01.00");
+        let output_path_str = output_path.display().to_string();
 
-        let mut ffmpeg_cmd = self.get_ffmpeg_command()?;
-        ffmpeg_cmd.args([
+        let ffmpeg_cmd = self.get_ffmpeg_command()?;
+        let ffmpeg_cmd = ffmpeg_cmd.args([
             "-ss",
-            timestamp_value,
+            &timestamp_str,
             "-i",
             video_path,
-            "-vf",
-            "scale=trunc(iw*sar/2)*2:ih,setsar=1",
-            "-frames:v",
+            "-vframes",
             "1",
-            "-an",
-            "-sn",
-            &output_path.display().to_string(),
+            "-q:v",
+            "2",
+            &output_path_str,
             "-y",
         ]);
 
         let executor = MediaProcessExecutorBuilder::new(self.app.clone())
-            .command(ffmpeg_cmd)
+            .command(ffmpeg_cmd.into())
             .build()?;
 
         let result = executor.spawn_and_wait().await?;
@@ -1044,7 +1344,7 @@ impl FFMPEG {
         Ok(VideoThumbnail {
             id,
             file_name,
-            file_path: output_path.display().to_string(),
+            file_path: output_path_str,
         })
     }
 
@@ -1105,16 +1405,17 @@ impl FFMPEG {
             ));
         }
 
-        let mut ffmpeg_cmd = self.get_ffmpeg_command()?;
-        ffmpeg_cmd
-            .args(["-i", video_path])
+        let ffmpeg_cmd = self.get_ffmpeg_command()?;
+        let ffmpeg_cmd = ffmpeg_cmd
+            .arg("-i")
+            .arg(video_path)
             .args(["-map", &format!("0:s:{}", subtitle_specific_index)])
             .args(["-c:s", ffmpeg_codec])
             .arg(&output_path_buf)
             .arg("-y");
 
         let executor = MediaProcessExecutorBuilder::new(self.app.clone())
-            .command(ffmpeg_cmd)
+            .command(ffmpeg_cmd.into())
             .build()?;
 
         let result = executor.spawn_and_wait().await?;
@@ -1122,7 +1423,7 @@ impl FFMPEG {
         if !result.success() {
             if Path::exists(&output_path_buf) {
                 return Err(format!(
-                    "Failed to extract subtitle (exit code {}). The subtitle may be in an unsupported format.",
+                    "Failed to extract subtitle (exit code {:?}). The subtitle may be in an unsupported format.",
                     result.code()
                 ));
             } else {
@@ -1168,8 +1469,8 @@ impl FFMPEG {
             String::from("00:00:00.00")
         };
 
-        let mut ffmpeg_cmd = self.get_ffmpeg_command()?;
-        ffmpeg_cmd.args([
+        let ffmpeg_cmd = self.get_ffmpeg_command()?;
+        let ffmpeg_cmd = ffmpeg_cmd.args([
             "-i",
             video_path,
             "-pix_fmt",
@@ -1206,9 +1507,7 @@ impl FFMPEG {
         gifski_cmd.args(&gifski_args_refs);
 
         log::info!(
-            "[ffmpeg] final ffmpeg -> gifski args: {:?} | {:?}",
-            ffmpeg_cmd.get_args(),
-            gifski_cmd.get_args()
+            "[ffmpeg] final ffmpeg and gifski commands prepared"
         );
 
         let cancel_callback = Arc::new(|| {
@@ -1240,6 +1539,12 @@ impl FFMPEG {
                                 video_id: video_id_for_progress.clone(),
                                 batch_id: String::new(),
                                 current_duration: combined_duration,
+                                encoder: "gifski".to_string(),
+                                speed: "1x".to_string(),
+                                fps: 0.0,
+                                percentage: 0.0,
+                                time_remaining: String::from("..."),
+                                time_elapsed: String::from("..."),
                             };
                             if let Some(window) = app_clone.get_webview_window("main") {
                                 window
@@ -1256,7 +1561,7 @@ impl FFMPEG {
         });
 
         let executor = MediaProcessExecutorBuilder::new(self.app.clone())
-            .commands(vec![ffmpeg_cmd, gifski_cmd])
+            .commands(vec![ffmpeg_cmd.into(), gifski_cmd.into()])
             .with_piped()
             .with_cancel_support(vec![video_id.to_string()], Some(cancel_callback))
             .with_stderr_callback(stderr_callback)

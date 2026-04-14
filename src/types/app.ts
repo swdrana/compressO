@@ -120,7 +120,12 @@ export type Video = {
     isSaved?: boolean
     savedPath?: string
   } | null
-  compressionProgress?: number
+  compressionProgress?: number,
+  activeEncoder?: string,
+  compressionSpeed?: string,
+  compressionFps?: number,
+  compressionTimeRemaining?: string,
+  compressionTimeElapsed?: string,
   config: VideoConfig
   isConfigDirty?: boolean
   dimensions?: { width: number; height: number }
@@ -183,7 +188,12 @@ export type Image = {
     isSaved?: boolean
     savedPath?: string
   } | null
-  compressionProgress?: number
+  compressionProgress?: number,
+  activeEncoder?: string,
+  compressionSpeed?: string,
+  compressionFps?: number,
+  compressionTimeRemaining?: string,
+  compressionTimeElapsed?: string,
   config: ImageConfig
   isConfigDirty?: boolean
   dimensions?: { width: number; height: number }

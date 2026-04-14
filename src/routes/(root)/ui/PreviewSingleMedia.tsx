@@ -300,6 +300,31 @@ function PreviewSingleMedia({ mediaIndex }: PreviewSingleMediaProps) {
           <p className=" text-sm mt-10 text-center animate-pulse">
             Processing...
           </p>
+          {mediaFile?.activeEncoder && (
+            <div className="flex flex-col items-center mt-1">
+              <p className="text-[10px] text-center opacity-70 uppercase tracking-widest">
+                Using: {mediaFile.activeEncoder}
+              </p>
+              <div className="flex items-center gap-2 text-[9px] opacity-60 mt-0.5">
+                {mediaFile.compressionSpeed && (
+                  <span>Speed: {mediaFile.compressionSpeed}</span>
+                )}
+                {mediaFile.compressionFps && (
+                  <span>FPS: {mediaFile.compressionFps}</span>
+                )}
+                {mediaFile.compressionTimeElapsed && (
+                  <span>
+                    E: {mediaFile.compressionTimeElapsed}
+                  </span>
+                )}
+                {mediaFile.compressionTimeRemaining && (
+                  <span>
+                    • R: {mediaFile.compressionTimeRemaining}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
           <p
             className={`text-2xl text-center font-bold my-2 opacity-${
               compressionProgress && compressionProgress > 0 ? 1 : 0

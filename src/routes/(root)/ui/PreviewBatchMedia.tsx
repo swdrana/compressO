@@ -435,18 +435,36 @@ function PreviewBatchMedia() {
                       {isCompressing && currentMediaIndex === originalIndex ? (
                         <>
                           {mediaFile?.type === 'video' ? (
-                            <CircularProgress
-                              showValueLabel
-                              className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2"
-                              value={mediaFile.compressionProgress}
-                              strokeWidth={2.5}
-                              classNames={{
-                                svg: 'w-14 h-14 drop-shadow-md',
-                                track: 'dark:stroke-white/50',
-                                value: 'text-[12px] text-white1',
-                              }}
-                              aria-label="Processing"
-                            />
+                            <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                              <CircularProgress
+                                showValueLabel
+                                value={mediaFile.compressionProgress}
+                                strokeWidth={2.5}
+                                classNames={{
+                                  svg: 'w-14 h-14 drop-shadow-md',
+                                  track: 'dark:stroke-white/50',
+                                  value: 'text-[12px] text-white1',
+                                }}
+                                aria-label="Processing"
+                              />
+                              {mediaFile.activeEncoder && (
+                                <div className="flex flex-col items-center mt-0.5">
+                                  <p className="text-[8px] text-white/70 uppercase tracking-tighter text-center whitespace-nowrap">
+                                    {mediaFile.activeEncoder}
+                                  </p>
+                                  <div className="flex items-center gap-1 text-[7px] text-white/50">
+                                    {mediaFile.compressionSpeed && (
+                                      <span>{mediaFile.compressionSpeed}</span>
+                                    )}
+                                    {mediaFile.compressionTimeRemaining && (
+                                      <span>
+                                        • {mediaFile.compressionTimeRemaining}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <Spinner className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2" />
                           )}

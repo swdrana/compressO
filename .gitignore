@@ -1,40 +1,27 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# tauri
+src-tauri/target
+src-tauri/binaries
+src-tauri/gen
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
-
-# testing
-/coverage
-
-# production
-/build
-/out/
-/dist/
-
-# misc
+# local
 .DS_Store
 *.pem
 latest.json
+*.dmg
+*.app
 
-# debug
+# dependencies
+node_modules/
+/dist/
+/out/
+/build/
+
+# logs
+*.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 
-# local env files
+# misc
 .env*.local
-
-# vercel
-.vercel
-
-# typescript
 *.tsbuildinfo
-
-
-/**/.env
-
 analyze
-target

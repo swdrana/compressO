@@ -539,7 +539,7 @@ impl ImageCompressor {
         });
 
         let executor = MediaProcessExecutorBuilder::new(self.app.clone())
-            .command(pngquant_cmd)
+            .command(pngquant_cmd.into())
             .with_cancel_support(
                 vec![image_id.to_string(), batch_id.to_string()],
                 Some(cancel_callback),
@@ -590,7 +590,7 @@ impl ImageCompressor {
         });
 
         let executor = MediaProcessExecutorBuilder::new(self.app.clone())
-            .command(jpegoptim_cmd)
+            .command(jpegoptim_cmd.into())
             .with_cancel_support(
                 vec![image_id.to_string(), batch_id.to_string()],
                 Some(cancel_callback),
@@ -682,7 +682,7 @@ impl ImageCompressor {
         });
 
         let executor = MediaProcessExecutorBuilder::new(self.app.clone())
-            .command(gifski_cmd)
+            .command(gifski_cmd.into())
             .with_cancel_support(
                 vec![image_id.to_string(), batch_id.to_string()],
                 Some(cancel_callback),
@@ -930,14 +930,14 @@ impl ImageCompressor {
         log::info!("[ffmpeg-image] conversion command: {:?}", cmd_args);
 
         let ffmpeg = FFMPEG::new(&self.app)?;
-        let mut ffmpeg_cmd = ffmpeg.get_ffmpeg_command()?;
+        let ffmpeg_cmd = ffmpeg.get_ffmpeg_command()?;
 
-        ffmpeg_cmd.args(&cmd_args);
+        let ffmpeg_cmd = ffmpeg_cmd.args(&cmd_args);
 
         let conversion_id = format!("img_convert_{}", nanoid!());
 
         let executor = MediaProcessExecutorBuilder::new(self.app.clone())
-            .command(ffmpeg_cmd)
+            .command(ffmpeg_cmd.into())
             .with_cancel_support(vec![conversion_id], None)
             .build()?;
 
@@ -1063,12 +1063,12 @@ impl ImageCompressor {
         log::info!("[image-transform] FFmpeg command: {:?}", cmd_args);
 
         let ffmpeg = FFMPEG::new(&self.app)?;
-        let mut ffmpeg_cmd = ffmpeg.get_ffmpeg_command()?;
+        let ffmpeg_cmd = ffmpeg.get_ffmpeg_command()?;
 
-        ffmpeg_cmd.args(&cmd_args);
+        let ffmpeg_cmd = ffmpeg_cmd.args(&cmd_args);
 
         let executor = MediaProcessExecutorBuilder::new(self.app.clone())
-            .command(ffmpeg_cmd)
+            .command(ffmpeg_cmd.into())
             .build()?;
 
         let result = executor.spawn_and_wait().await?;

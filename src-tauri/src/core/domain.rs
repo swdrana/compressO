@@ -66,6 +66,12 @@ pub struct VideoCompressionProgress {
     pub video_id: String,
     pub batch_id: String,
     pub current_duration: String,
+    pub encoder: String,
+    pub speed: String,
+    pub fps: f32,
+    pub percentage: f32,
+    pub time_remaining: String,
+    pub time_elapsed: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
